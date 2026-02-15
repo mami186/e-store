@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from app.models.models import UserRole
 from sqlalchemy.exc import IntegrityError
 
-from app.utils.auth import get_password_hash
 
 class Base_Seller:
     def __init__(self, model):

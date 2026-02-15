@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional
 
 class ProductCreate(BaseModel):
-    seller_id: int
     name: str
     variant_name: str
     description: str
@@ -19,7 +18,6 @@ class ProductResponse(BaseModel):
     stock: int
 
 class ProductUpdate(BaseModel):
-    id: int
     seller_id: int
     name: str
     variant_name: str
@@ -37,7 +35,6 @@ class ProductVariantCreate(BaseModel):
     stock: int
 
 class ProductVariantUpdate(BaseModel):
-    id: int
     product_id: int
     variant_name: str
     price: int
