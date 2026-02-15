@@ -11,11 +11,7 @@ class SellerCreate(BaseModel):
     shop_description: str
     payout_account: str
 
-class SellerResponse(BaseModel):
-    id: int
-    shop_name: str
-    shop_description:str
-    payout_account :str
+
 
 class SellerUpdate(BaseModel):
     shop_name: Optional[str]

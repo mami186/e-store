@@ -1,6 +1,7 @@
 import pytest
 
-@pytest.fixture(scope="module")
+
+@pytest.fixture(scope="function")
 def test_user(client):
     payload = {
         "first_name": "Test",
@@ -62,26 +63,13 @@ def test_update_user(client, test_user):
     assert data["last_name"] == "User"
 
 
-def test_delete_user(client):
+def test_delete_user(client, test_user):
     # Fixed user data for delete test
-    payload = {
-        "first_name": "Delete",
-        "last_name": "Test",
-        "username": "deletetest",
-        "email": "deletetest@example.com",
-        "password": "delete123",
-    }
+    user_id = test_user["id"]
 
-    # First, create the user
-    response = client.post("/users/register", json=payload)
-    assert response.status_code == 201
-    user_id = response.json()["id"]
-
-    # Delete the user
     del_response = client.delete(f"/users/{user_id}")
     assert del_response.status_code == 204
 
     # Verify user no longer exists
     get_response = client.get(f"/users/{user_id}")
-    assert get_response.status_code == 200
-    assert get_response.json() is None or get_response.json() == {}
+    assert get_response.status_code == 404
