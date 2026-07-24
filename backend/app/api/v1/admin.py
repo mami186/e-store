@@ -22,6 +22,7 @@ from app.schemas.restriction import (
     RestrictionResponse,
 )
 from app.models.user import Role, Seller, User, UserRole
+from app.schemas.order import OrderResponse
 from app.schemas.product import CommentResponse, ProductListItem, ProductResponse
 from app.schemas.seller import SellerResponse
 from app.schemas.user import UserResponse
@@ -186,6 +187,45 @@ async def admin_update_product_status(
     product.status = status
     await db.commit()
     return {"message": "Product status updated"}
+
+
+# ─── Order Management ─────────────────────────────────────────────────
+
+
+@router.get("/orders", response_model=list[OrderResponse])
+async def admin_list_orders(
+    status: str | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    query = select(Order).options(
+        selectinload(Order.items), selectinload(Order.address)
+    )
+    if status:
+        query = query.where(Order.status == status)
+    query = query.offset(skip).limit(limit).order_by(Order.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.put("/orders/{order_id}/status")
+async def admin_update_order_status(
+    order_id: int,
+    status: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_super_admin),
+):
+    result = await db.execute(
+        select(Order).where(Order.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise NotFoundException("Order not found")
+    order.status = status
+    await db.commit()
+    return {"message": f"Order status set to {status}"}
 
 
 @router.get("/comments", response_model=list[CommentResponse])
