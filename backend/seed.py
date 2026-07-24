@@ -1,4 +1,4 @@
-"""Seed script: creates an initial super_admin user."""
+"""Seed script: creates an initial super_admin user and restriction reasons."""
 
 import asyncio
 import sys
@@ -7,8 +7,11 @@ sys.path.insert(0, ".")
 
 
 async def main():
+    from sqlalchemy import select
+
     from app.core.database import async_session
     from app.core.security import get_password_hash
+    from app.models.restriction import RestrictionReason
     from app.models.user import User, Role, UserRole
 
     async with async_session() as db:
@@ -19,14 +22,10 @@ async def main():
             {"id": 3, "name": "admin", "description": "Can manage users and promote to moderator"},
             {"id": 4, "name": "super_admin", "description": "Full access"},
         ]:
-            from sqlalchemy import select
-
             result = await db.execute(select(Role).where(Role.id == role_data["id"]))
             if not result.scalar_one_or_none():
                 db.add(Role(**role_data))
         await db.commit()
-
-        from sqlalchemy import select
 
         result = await db.execute(select(User).where(User.email == "admin@estore.com"))
         if not result.scalar_one_or_none():
@@ -45,6 +44,24 @@ async def main():
             print("Super admin created: admin@estore.com / Admin123!")
         else:
             print("Admin already exists")
+
+        for reason_text in [
+            "Counterfeit products",
+            "Prohibited or restricted items",
+            "Intellectual property violation",
+            "Fraudulent activity",
+            "Poor customer service",
+            "Product misrepresentation",
+            "Policy violation",
+            "Spam or misleading listings",
+        ]:
+            result = await db.execute(
+                select(RestrictionReason).where(RestrictionReason.reason_text == reason_text)
+            )
+            if not result.scalar_one_or_none():
+                db.add(RestrictionReason(reason_text=reason_text))
+        await db.commit()
+        print("Restriction reasons seeded")
 
 
 if __name__ == "__main__":
