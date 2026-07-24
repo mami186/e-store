@@ -96,6 +96,11 @@ docker-compose.override.yml
 tmp/
 
 # =========================
+# Atlas binary (downloaded per-project)
+# =========================
+backend/bin/
+
+# =========================
 # Node
 # =========================
 node_modules/
