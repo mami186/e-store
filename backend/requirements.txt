@@ -1,0 +1,13 @@
+fastapi>=0.115.0
+uvicorn[standard]
+pydantic>=2.0.0
+pydantic[email]
+pydantic-settings
+sqlalchemy[asyncio]>=2.0.0
+asyncpg
+python-jose[cryptography]
+python-multipart
+boto3
+google-auth
+requests
+python-dotenv
