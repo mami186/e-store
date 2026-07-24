@@ -10,6 +10,7 @@ from app.api.v1 import (
     auth,
     carts,
     comments,
+    images,
     orders,
     products,
     sellers,
@@ -33,8 +34,9 @@ ROLE_SEEDS: list[dict] = [
 async def lifespan(app: FastAPI):
     from app.core.database import async_session
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if settings.DEBUG:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
     async with async_session() as session:
         for role_data in ROLE_SEEDS:
@@ -70,6 +72,7 @@ app.include_router(sellers.router, prefix="/api/v1")
 app.include_router(products.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(carts.router, prefix="/api/v1")
+app.include_router(images.router, prefix="/api/v1")
 app.include_router(wishlists.router, prefix="/api/v1")
 app.include_router(orders.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
