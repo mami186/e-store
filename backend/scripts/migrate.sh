@@ -91,6 +91,17 @@ case "${1:-help}" in
 
   apply)
     ensure_atlas
+    HAS_ATLAS_TABLE=$(psql "$DB_URL" -Atq -c "SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = 'atlas_schema_revisions');" 2>/dev/null || echo "false")
+    if [ "$HAS_ATLAS_TABLE" = "f" ]; then
+      HAS_TABLES=$(psql "$DB_URL" -Atq -c "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename NOT LIKE 'atlas_%');" 2>/dev/null || echo "false")
+      if [ "$HAS_TABLES" = "t" ]; then
+        LATEST="$("$ATLAS_BIN" migrate list --dir "$MIGRATIONS_DIR" --format '{{ range . }}{{ .Version }}{{ end }}' 2>/dev/null | tail -1)"
+        [ -z "$LATEST" ] && LATEST=$(ls -1 "$PROJECT_DIR/migrations/"*.sql | sort | tail -1 | xargs basename | cut -d_ -f1)
+        echo "Database has tables but no migration tracking. Baselining at $LATEST..."
+        "$ATLAS_BIN" migrate set "$LATEST" --dir "$MIGRATIONS_DIR" --url "$DB_URL" 2>/dev/null || true
+        return
+      fi
+    fi
     echo "Applying pending migrations..."
     "$ATLAS_BIN" migrate apply \
       --dir "$MIGRATIONS_DIR" \
@@ -109,6 +120,30 @@ case "${1:-help}" in
     "$ATLAS_BIN" schema inspect -u "$DB_URL" --format '{{ sql . }}'
     ;;
 
+  reset)
+    ensure_atlas
+    echo "Dropping all tables..."
+    psql "$DB_URL" -c "DROP SCHEMA IF EXISTS atlas_schema_revisions CASCADE;"
+    psql "$DB_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    echo "Running migrations from scratch..."
+    "$ATLAS_BIN" migrate apply --dir "$MIGRATIONS_DIR" --url "$DB_URL"
+    echo "Seeding data..."
+    cd "$PROJECT_DIR" && unset DATABASE_URL && .venv/bin/python seed.py
+    ;;
+
+  fresh)
+    ensure_atlas
+    ADMIN_URL="postgres://postgres@localhost:5432/postgres?sslmode=disable"
+    echo "Dropping database..."
+    psql "$ADMIN_URL" -c "DROP DATABASE IF EXISTS estore WITH (FORCE);" 2>/dev/null || psql "$ADMIN_URL" -c "DROP DATABASE IF EXISTS estore;"
+    echo "Creating database..."
+    psql "$ADMIN_URL" -c "CREATE DATABASE estore;"
+    echo "Running all migrations from scratch..."
+    "$ATLAS_BIN" migrate apply --dir "$MIGRATIONS_DIR" --url "$DB_URL"
+    echo "Seeding data..."
+    cd "$PROJECT_DIR" && unset DATABASE_URL && .venv/bin/python seed.py
+    ;;
+
   help|--help|-h)
     echo "Usage: $0 <command>"
     echo ""
@@ -116,6 +151,8 @@ case "${1:-help}" in
     echo "  init          Generate initial migration from current DB"
     echo "  diff <name>   Generate a new migration after model changes"
     echo "  apply         Run pending migrations"
+    echo "  reset         Drop all tables, re-run migrations, re-seed"
+    echo "  fresh         Drop entire DB, recreate, run all migrations, re-seed"
     echo "  status        Show migration status"
     echo "  inspect       Dump current DB schema as SQL"
     ;;
