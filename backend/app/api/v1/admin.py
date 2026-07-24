@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,9 +9,18 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
-from app.models.product import Product, ProductComment, ProductImage
+from app.models.product import Product, ProductComment, ProductImage, ProductSubVariant
 from app.models.report import Report
+from app.models.restriction import Appeal, Restriction, RestrictionProduct, RestrictionReason
+from app.models.order import Order, OrderItem
 from app.schemas.product import ReportResponse
+from app.schemas.restriction import (
+    AppealResponse,
+    CreateRestrictionRequest,
+    RestrictionReasonCreate,
+    RestrictionReasonResponse,
+    RestrictionResponse,
+)
 from app.models.user import Role, Seller, User, UserRole
 from app.schemas.product import CommentResponse, ProductListItem, ProductResponse
 from app.schemas.seller import SellerResponse
@@ -80,8 +91,6 @@ async def admin_toggle_user_status(
     if target.highest_role_id >= current_user.highest_role_id:
         raise ForbiddenException("Cannot modify users with equal or higher role")
     target.is_active = is_active
-    if not is_active:
-        target.token_version += 1
     await db.commit()
     return {"message": "User status updated"}
 
@@ -247,3 +256,171 @@ async def admin_update_report_status(
     report.status = status
     await db.commit()
     return {"message": "Report status updated"}
+
+
+# ─── Restriction Reasons ──────────────────────────────────────────────
+
+
+@router.get("/restriction-reasons", response_model=list[RestrictionReasonResponse])
+async def admin_list_reasons(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    result = await db.execute(select(RestrictionReason).order_by(RestrictionReason.id))
+    return result.scalars().all()
+
+
+@router.post("/restriction-reasons", response_model=RestrictionReasonResponse, status_code=201)
+async def admin_create_reason(
+    data: RestrictionReasonCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    reason = RestrictionReason(reason_text=data.reason_text)
+    db.add(reason)
+    await db.commit()
+    await db.refresh(reason)
+    return reason
+
+
+# ─── Restrictions ─────────────────────────────────────────────────────
+
+
+@router.post("/users/{user_id}/restrict", response_model=RestrictionResponse, status_code=201)
+async def admin_restrict_user(
+    user_id: int,
+    data: CreateRestrictionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    target_result = await db.execute(select(User).where(User.id == user_id))
+    target = target_result.scalar_one_or_none()
+    if not target:
+        raise NotFoundException("User not found")
+    if target.highest_role_id >= current_user.highest_role_id:
+        raise ForbiddenException("Cannot restrict users with equal or higher role")
+
+    reason_result = await db.execute(
+        select(RestrictionReason).where(RestrictionReason.id == data.reason_id)
+    )
+    if not reason_result.scalar_one_or_none():
+        raise NotFoundException("Restriction reason not found")
+
+    restriction = Restriction(
+        user_id=user_id,
+        restricted_by=current_user.id,
+        report_id=data.report_id,
+        reason_id=data.reason_id,
+        description=data.description,
+        penalty_days=data.penalty_days,
+    )
+    db.add(restriction)
+    await db.flush()
+
+    for sv_id in data.subvariant_ids:
+        sv_result = await db.execute(
+            select(ProductSubVariant).where(ProductSubVariant.id == sv_id)
+        )
+        sv = sv_result.scalar_one_or_none()
+        if sv:
+            rp = RestrictionProduct(
+                restriction_id=restriction.id,
+                subvariant_id=sv_id,
+                version_snapshot={
+                    "sku": sv.sku,
+                    "subvariant_name": sv.subvariant_name,
+                    "price": float(sv.effective_price) if sv.effective_price else None,
+                    "stock": sv.stock,
+                    "attributes": sv.attributes,
+                    "variant_name": sv.variant.variant_name,
+                },
+            )
+            db.add(rp)
+
+    await db.commit()
+
+    order_result = await db.execute(
+        select(Order).where(
+            Order.user_id == user_id,
+            Order.status == "pending",
+        )
+    )
+    for order in order_result.scalars().all():
+        order.status = "cancelled"
+        order.notes = (order.notes or "") + " | Cancelled due to account restriction"
+
+    await db.commit()
+
+    result = await db.execute(
+        select(Restriction)
+        .where(Restriction.id == restriction.id)
+        .options(selectinload(Restriction.products))
+    )
+    restriction = result.scalar_one_or_none()
+    return restriction
+
+
+@router.put("/restrictions/{restriction_id}/lift")
+async def admin_lift_restriction(
+    restriction_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    result = await db.execute(select(Restriction).where(Restriction.id == restriction_id))
+    restriction = result.scalar_one_or_none()
+    if not restriction:
+        raise NotFoundException("Restriction not found")
+    restriction.status = "lifted"
+    restriction.lifted_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"message": "Restriction lifted"}
+
+
+@router.get("/restrictions", response_model=list[RestrictionResponse])
+async def admin_list_restrictions(
+    status: str | None = None,
+    user_id: int | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    query = select(Restriction).options(selectinload(Restriction.products))
+    if status:
+        query = query.where(Restriction.status == status)
+    if user_id:
+        query = query.where(Restriction.user_id == user_id)
+    query = query.offset(skip).limit(limit).order_by(Restriction.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.post("/appeals/{appeal_id}/review")
+async def admin_review_appeal(
+    appeal_id: int,
+    status: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    if status not in ("approved", "rejected"):
+        raise ConflictException("Status must be approved or rejected")
+    result = await db.execute(select(Appeal).where(Appeal.id == appeal_id))
+    appeal = result.scalar_one_or_none()
+    if not appeal:
+        raise NotFoundException("Appeal not found")
+    appeal.status = status
+    appeal.reviewed_by = current_user.id
+    appeal.reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    if status == "approved":
+        result = await db.execute(
+            select(Restriction).where(Restriction.id == appeal.restriction_id)
+        )
+        restriction = result.scalar_one_or_none()
+        if restriction:
+            restriction.status = "lifted"
+            restriction.lifted_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    return {"message": f"Appeal {status}"}

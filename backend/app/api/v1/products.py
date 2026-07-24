@@ -9,6 +9,7 @@ from app.core.exceptions import ConflictException, ForbiddenException, NotFoundE
 from app.core.history import record_history
 from app.models.product import Product, ProductComment, ProductImage, ProductSubVariant, ProductVariant
 from app.models.report import Report
+from app.models.restriction import Restriction
 from app.models.user import Seller, User
 from app.schemas.product import (
     CommentCreate,
@@ -40,6 +41,15 @@ async def create_product(
     if not seller or not seller.is_verified:
         raise ForbiddenException("Seller profile not verified")
 
+    restriction_result = await db.execute(
+        select(Restriction).where(
+            Restriction.user_id == current_user.id,
+            Restriction.status == "active",
+        )
+    )
+    if restriction_result.scalar_one_or_none():
+        raise ForbiddenException("Account restricted. Cannot create products")
+
     product = Product(
         seller_id=current_user.id,
         name=data.name,
@@ -60,7 +70,19 @@ async def list_products(
     seller_id: int | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Product).where(Product.is_active == True, Product.status == "published")
+    query = (
+        select(Product)
+        .where(
+            Product.is_active == True,
+            Product.status == "published",
+            ~select(Restriction.id)
+            .where(
+                Restriction.user_id == Product.seller_id,
+                Restriction.status == "active",
+            )
+            .exists(),
+        )
+    )
 
     if category:
         query = query.where(Product.category == category)
@@ -102,6 +124,16 @@ async def update_product(
         raise NotFoundException("Product not found")
     if product.seller_id != current_user.id:
         raise ForbiddenException("Not your product")
+
+    if data.name is not None or data.description is not None or data.category is not None:
+        restriction_result = await db.execute(
+            select(Restriction).where(
+                Restriction.user_id == current_user.id,
+                Restriction.status == "active",
+            )
+        )
+        if restriction_result.scalar_one_or_none():
+            raise ForbiddenException("Account restricted. Cannot edit products")
 
     await record_history(db, product, "update", current_user.id)
 

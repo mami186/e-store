@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.database import get_db
-from app.core.exceptions import ConflictException, UnauthorizedException
+from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -20,7 +20,9 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
+from app.models.restriction import Appeal, Restriction
 from app.models.user import TokenBlacklist, User, UserRole, RefreshToken, Role
+from app.schemas.restriction import AppealCreate, AppealResponse
 from app.schemas.auth import (
     GoogleAuthRequest,
     LoginRequest,
@@ -249,6 +251,43 @@ async def logout_all(
 
     await db.commit()
     return {"message": "Logged out of all devices"}
+
+
+@router.post("/appeals", response_model=AppealResponse, status_code=201)
+async def submit_appeal(
+    data: AppealCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    result = await db.execute(
+        select(Restriction).where(
+            Restriction.user_id == current_user.id,
+            Restriction.status == "active",
+            Restriction.id == data.restriction_id,
+        )
+    )
+    restriction = result.scalar_one_or_none()
+    if not restriction:
+        raise NotFoundException("Active restriction not found")
+
+    existing = await db.execute(
+        select(Appeal).where(
+            Appeal.restriction_id == data.restriction_id,
+            Appeal.status == "pending",
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictException("Pending appeal already exists for this restriction")
+
+    appeal = Appeal(
+        user_id=current_user.id,
+        restriction_id=data.restriction_id,
+        appeal_text=data.reason_text,
+    )
+    db.add(appeal)
+    await db.commit()
+    await db.refresh(appeal)
+    return appeal
 
 
 @router.get("/me", response_model=UserResponse)

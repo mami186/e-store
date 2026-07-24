@@ -1,4 +1,5 @@
 from app.models.report import Report
+from app.models.restriction import Restriction, RestrictionReason, RestrictionProduct, Appeal
 from app.models.product import (
     Product,
     ProductVariant,
@@ -37,4 +38,8 @@ __all__ = [
     "OrderItem",
     "Address",
     "Report",
+    "Restriction",
+    "RestrictionReason",
+    "RestrictionProduct",
+    "Appeal",
 ]
