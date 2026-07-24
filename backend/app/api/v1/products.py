@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.core.history import record_history
-from app.models.product import Product, ProductComment, ProductImage, ProductSubVariant, ProductVariant
+from app.models.product import Product, ProductImage, ProductSubVariant, ProductVariant
 from app.models.report import Report
 from app.models.restriction import Restriction
 from app.models.user import Seller, User
 from app.schemas.product import (
-    CommentCreate,
-    CommentResponse,
     ProductCreate,
     ProductListItem,
     ProductResponse,
@@ -68,6 +66,11 @@ async def create_product(
 async def list_products(
     category: str | None = None,
     seller_id: int | None = None,
+    q: str | None = None,
+    sort_by: str = Query("created_at", pattern=r"^(created_at|name)$"),
+    order: str = Query("desc", pattern=r"^(asc|desc)$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -88,8 +91,15 @@ async def list_products(
         query = query.where(Product.category == category)
     if seller_id:
         query = query.where(Product.seller_id == seller_id)
+    if q:
+        query = query.where(
+            or_(Product.name.ilike(f"%{q}%"), Product.description.ilike(f"%{q}%"))
+        )
 
-    query = query.order_by(Product.created_at.desc())
+    sort_column = {"created_at": Product.created_at, "name": Product.name}[sort_by]
+    query = query.order_by(sort_column.desc() if order == "desc" else sort_column.asc())
+
+    query = query.offset(skip).limit(limit)
     result = await db.execute(query)
     products = result.scalars().all()
     return products
@@ -476,61 +486,4 @@ async def report_product(
     return report
 
 
-@router.post("/{product_id}/comments", response_model=CommentResponse, status_code=201)
-async def create_comment(
-    product_id: int,
-    data: CommentCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    result = await db.execute(select(Product).where(Product.id == product_id))
-    if not result.scalar_one_or_none():
-        raise NotFoundException("Product not found")
 
-    comment = ProductComment(
-        product_id=product_id,
-        user_id=current_user.id,
-        content=data.content,
-        rating=data.rating,
-        parent_comment_id=data.parent_comment_id,
-    )
-    db.add(comment)
-    await db.commit()
-    await db.refresh(comment)
-    _ = comment.replies
-    return comment
-
-
-@router.get("/{product_id}/comments", response_model=list[CommentResponse])
-async def list_comments(
-    product_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(ProductComment)
-        .where(ProductComment.product_id == product_id, ProductComment.status == "approved")
-        .order_by(ProductComment.created_at.desc())
-    )
-    return result.scalars().all()
-
-
-@router.delete("/{product_id}/comments/{comment_id}", status_code=204)
-async def delete_comment(
-    product_id: int,
-    comment_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    result = await db.execute(
-        select(ProductComment).where(
-            ProductComment.id == comment_id,
-            ProductComment.product_id == product_id,
-        )
-    )
-    comment = result.scalar_one_or_none()
-    if not comment:
-        raise NotFoundException("Comment not found")
-    if comment.user_id != current_user.id and current_user.highest_role_id < 2:
-        raise ForbiddenException("Not your comment")
-    await db.delete(comment)
-    await db.commit()

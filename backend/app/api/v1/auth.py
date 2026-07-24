@@ -290,6 +290,19 @@ async def submit_appeal(
     return appeal
 
 
+@router.get("/appeals", response_model=list[AppealResponse])
+async def list_my_appeals(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    result = await db.execute(
+        select(Appeal)
+        .where(Appeal.user_id == current_user.id)
+        .order_by(Appeal.created_at.desc())
+    )
+    return result.scalars().all()
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_active_user)):
     return current_user

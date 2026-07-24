@@ -79,11 +79,12 @@ async def delete_comment(
         select(ProductComment).where(
             ProductComment.id == comment_id,
             ProductComment.product_id == product_id,
-            ProductComment.user_id == current_user.id,
         )
     )
     comment = result.scalar_one_or_none()
     if not comment:
         raise NotFoundException("Comment not found")
+    if comment.user_id != current_user.id and current_user.highest_role_id < 2:
+        raise ForbiddenException("Not your comment")
     await db.delete(comment)
     await db.commit()
