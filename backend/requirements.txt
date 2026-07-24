@@ -7,7 +7,7 @@ sqlalchemy[asyncio]>=2.0.0
 asyncpg
 python-jose[cryptography]
 python-multipart
-boto3
+aioboto3
 google-auth
 requests
-python-dotenv
+bcrypt
