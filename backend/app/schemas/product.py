@@ -138,6 +138,20 @@ class SubVariantUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class ReportCreate(BaseModel):
+    reason_text: str
+
+
+class ReportResponse(BaseModel):
+    id: int
+    product_id: int
+    reason_text: str
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class CommentCreate(BaseModel):
     content: str
     rating: int | None = None

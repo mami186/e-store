@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.core.history import record_history
 from app.models.product import Product, ProductComment, ProductImage, ProductSubVariant, ProductVariant
+from app.models.report import Report
 from app.models.user import Seller, User
 from app.schemas.product import (
     CommentCreate,
@@ -16,6 +17,8 @@ from app.schemas.product import (
     ProductListItem,
     ProductResponse,
     ProductUpdate,
+    ReportCreate,
+    ReportResponse,
     SubVariantCreate,
     SubVariantUpdate,
     VariantCreate,
@@ -400,6 +403,45 @@ async def delete_subvariant(
     await record_history(db, sub, "delete", current_user.id)
     await db.delete(sub)
     await db.commit()
+
+
+@router.post("/{product_id}/reports", response_model=ReportResponse, status_code=201)
+async def report_product(
+    product_id: int,
+    data: ReportCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise NotFoundException("Product not found")
+
+    _ = product.variants
+    version_vector = {
+        "product_version": product.version,
+        "variants": [],
+    }
+    for v in product.variants:
+        v_info = {"variant_id": v.id, "variant_version": v.version, "subvariants": []}
+        _ = v.subvariants
+        for sv in v.subvariants:
+            v_info["subvariants"].append({
+                "subvariant_id": sv.id,
+                "subvariant_version": sv.version,
+            })
+        version_vector["variants"].append(v_info)
+
+    report = Report(
+        reporter_id=current_user.id,
+        product_id=product_id,
+        reason_text=data.reason_text,
+        version_vector=version_vector,
+    )
+    db.add(report)
+    await db.commit()
+    await db.refresh(report)
+    return report
 
 
 @router.post("/{product_id}/comments", response_model=CommentResponse, status_code=201)

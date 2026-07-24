@@ -1,3 +1,4 @@
+from app.models.report import Report
 from app.models.product import (
     Product,
     ProductVariant,
@@ -35,4 +36,5 @@ __all__ = [
     "Order",
     "OrderItem",
     "Address",
+    "Report",
 ]

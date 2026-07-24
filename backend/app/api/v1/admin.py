@@ -8,6 +8,8 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.models.product import Product, ProductComment, ProductImage
+from app.models.report import Report
+from app.schemas.product import ReportResponse
 from app.models.user import Role, Seller, User, UserRole
 from app.schemas.product import CommentResponse, ProductListItem, ProductResponse
 from app.schemas.seller import SellerResponse
@@ -211,3 +213,37 @@ async def admin_update_comment_status(
     comment.status = status
     await db.commit()
     return {"message": "Comment status updated"}
+
+
+@router.get("/reports", response_model=list[ReportResponse])
+async def admin_list_reports(
+    status: str | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    query = select(Report)
+    if status:
+        query = query.where(Report.status == status)
+    query = query.offset(skip).limit(limit).order_by(Report.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.put("/reports/{report_id}/status")
+async def admin_update_report_status(
+    report_id: int,
+    status: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    if status not in ("pending", "reviewed", "dismissed"):
+        raise ConflictException("Invalid status")
+    result = await db.execute(select(Report).where(Report.id == report_id))
+    report = result.scalar_one_or_none()
+    if not report:
+        raise NotFoundException("Report not found")
+    report.status = status
+    await db.commit()
+    return {"message": "Report status updated"}
