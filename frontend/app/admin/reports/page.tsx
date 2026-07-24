@@ -1,0 +1,98 @@
+"use client"
+
+import { useState } from "react"
+import { useAdminReports, useAdminUpdateReportStatus } from "@/hooks/use-admin"
+import { formatDate } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+
+const statusColors: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  reviewed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  dismissed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+}
+
+export default function AdminReportsPage() {
+  const [filter, setFilter] = useState<string | undefined>(undefined)
+  const { data: reports, isLoading } = useAdminReports(filter)
+  const updateStatus = useAdminUpdateReportStatus()
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Reports</h1>
+        <div className="flex gap-2">
+          {["all", "pending", "reviewed", "dismissed"].map((f) => (
+            <Button
+              key={f}
+              variant={filter === f || (!filter && f === "all") ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter(f === "all" ? undefined : f)}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {reports?.map((r) => (
+            <Card key={r.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1 flex-1">
+                    <p className="text-sm">{r.reason_text}</p>
+                    <div className="flex gap-2 text-xs text-muted-foreground">
+                      <span>Product #{r.product_id}</span>
+                      <span>{formatDate(r.created_at)}</span>
+                    </div>
+                    <Badge className={statusColors[r.status] || ""}>
+                      {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {r.status === "pending" && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            updateStatus.mutate({
+                              reportId: r.id,
+                              status: "reviewed",
+                            })
+                          }
+                        >
+                          Mark Reviewed
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            updateStatus.mutate({
+                              reportId: r.id,
+                              status: "dismissed",
+                            })
+                          }
+                        >
+                          Dismiss
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
