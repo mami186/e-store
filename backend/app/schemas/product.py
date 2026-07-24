@@ -16,6 +16,15 @@ class ProductImageResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ImageUpdate(BaseModel):
+    alt_text: str | None = None
+
+
+class AdminProductImageResponse(ProductImageResponse):
+    is_deleted: bool
+    deleted_at: datetime | None
+
+
 class SubVariantResponse(BaseModel):
     id: int
     variant_id: int

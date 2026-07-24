@@ -178,6 +178,8 @@ class ProductImage(Base):
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     alt_text: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_main: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -185,6 +187,8 @@ class ProductImage(Base):
     product: Mapped["Product"] = relationship(back_populates="images")
     variant: Mapped["ProductVariant | None"] = relationship(back_populates="images")
     subvariant: Mapped["ProductSubVariant | None"] = relationship(back_populates="images")
+
+
 
 
 class ProductComment(Base):
