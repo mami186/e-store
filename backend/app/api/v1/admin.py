@@ -23,7 +23,7 @@ from app.schemas.restriction import (
 )
 from app.models.user import Role, Seller, User, UserRole
 from app.schemas.order import OrderResponse
-from app.schemas.product import CommentResponse, ProductListItem, ProductResponse
+from app.schemas.product import AdminProductImageResponse, CommentResponse, ProductListItem, ProductResponse
 from app.schemas.seller import SellerResponse
 from app.schemas.user import UserResponse
 from app.api.deps import get_current_active_user, require_moderator, require_super_admin
@@ -464,3 +464,48 @@ async def admin_review_appeal(
 
     await db.commit()
     return {"message": f"Appeal {status}"}
+
+
+# ─── Image Management ──────────────────────────────────────────────────
+
+
+@router.get("/products/images", response_model=list[AdminProductImageResponse])
+async def admin_list_images(
+    is_deleted: bool | None = None,
+    product_id: int | None = None,
+    variant_id: int | None = None,
+    subvariant_id: int | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    query = select(ProductImage)
+    if is_deleted is not None:
+        query = query.where(ProductImage.is_deleted == is_deleted)
+    if product_id is not None:
+        query = query.where(ProductImage.product_id == product_id)
+    if variant_id is not None:
+        query = query.where(ProductImage.variant_id == variant_id)
+    if subvariant_id is not None:
+        query = query.where(ProductImage.subvariant_id == subvariant_id)
+    query = query.offset(skip).limit(limit).order_by(ProductImage.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.put("/products/images/{image_id}/restore", response_model=AdminProductImageResponse)
+async def admin_restore_image(
+    image_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    result = await db.execute(select(ProductImage).where(ProductImage.id == image_id))
+    image = result.scalar_one_or_none()
+    if not image:
+        raise NotFoundException("Image not found")
+    image.is_deleted = False
+    image.deleted_at = None
+    await db.commit()
+    await db.refresh(image)
+    return image
