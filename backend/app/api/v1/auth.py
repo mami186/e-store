@@ -20,7 +20,7 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
-from app.models.user import User, UserRole, RefreshToken, Role
+from app.models.user import TokenBlacklist, User, UserRole, RefreshToken, Role
 from app.schemas.auth import (
     GoogleAuthRequest,
     LoginRequest,
@@ -29,7 +29,7 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.schemas.user import UserResponse
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, oauth2_scheme
 
 settings = Settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -71,7 +71,8 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     user_role = UserRole(user_id=user.id, role_id=0)
     db.add(user_role)
 
-    access_token = create_access_token({"sub": str(user.id)})
+    await db.refresh(user)
+    access_token = create_access_token({"sub": str(user.id), "ver": user.token_version})
     refresh_token = create_refresh_token({"sub": str(user.id)})
     token_hash = hash_token(refresh_token)
     expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
@@ -94,7 +95,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user or not user.password_hash or not verify_password(data.password, user.password_hash):
         raise UnauthorizedException("Invalid email or password")
 
-    access_token = create_access_token({"sub": str(user.id)})
+    access_token = create_access_token({"sub": str(user.id), "ver": user.token_version})
     refresh_token = create_refresh_token({"sub": str(user.id)})
     token_hash = hash_token(refresh_token)
     expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
@@ -132,14 +133,19 @@ async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
     if not user_id:
         raise UnauthorizedException("Invalid token payload")
 
-    new_access = create_access_token({"sub": str(user_id)})
-    new_refresh = create_refresh_token({"sub": str(user_id)})
+    user_result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = user_result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise UnauthorizedException("User not found or inactive")
+
+    new_access = create_access_token({"sub": str(user.id), "ver": user.token_version})
+    new_refresh = create_refresh_token({"sub": str(user.id)})
     new_hash = hash_token(new_refresh)
     expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
     db.add(
         RefreshToken(
-            user_id=int(user_id), token_hash=new_hash, expires_at=expires_at
+            user_id=user.id, token_hash=new_hash, expires_at=expires_at
         )
     )
     await db.commit()
@@ -181,7 +187,8 @@ async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db
         await db.flush()
         db.add(UserRole(user_id=user.id, role_id=0))
 
-    access_token = create_access_token({"sub": str(user.id)})
+    await db.refresh(user)
+    access_token = create_access_token({"sub": str(user.id), "ver": user.token_version})
     refresh_token = create_refresh_token({"sub": str(user.id)})
     token_hash = hash_token(refresh_token)
     expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
@@ -197,7 +204,18 @@ async def logout(
     data: RefreshRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
+    access_token: str | None = Depends(oauth2_scheme),
 ):
+    payload = decode_token(access_token) if access_token else None
+    jti = payload.get("jti") if payload else None
+    exp = payload.get("exp") if payload else None
+    if jti and exp:
+        existing = await db.execute(
+            select(TokenBlacklist).where(TokenBlacklist.jti == jti)
+        )
+        if not existing.scalar_one_or_none():
+            db.add(TokenBlacklist(jti=jti, expires_at=datetime.fromtimestamp(exp, tz=timezone.utc)))
+
     token_hash = hash_token(data.refresh_token)
     result = await db.execute(
         select(RefreshToken).where(
@@ -209,8 +227,28 @@ async def logout(
     db_token = result.scalar_one_or_none()
     if db_token:
         db_token.revoked = True
-        await db.commit()
+    await db.commit()
     return {"message": "Logged out"}
+
+
+@router.post("/logout-all")
+async def logout_all(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    current_user.token_version += 1
+
+    result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.user_id == current_user.id,
+            RefreshToken.revoked == False,
+        )
+    )
+    for token in result.scalars().all():
+        token.revoked = True
+
+    await db.commit()
+    return {"message": "Logged out of all devices"}
 
 
 @router.get("/me", response_model=UserResponse)

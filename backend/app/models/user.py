@@ -21,6 +21,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    token_version: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -139,6 +140,13 @@ class Seller(Base):
     @property
     def is_verified(self) -> bool:
         return self.verification_status == "approved"
+
+
+class TokenBlacklist(Base):
+    __tablename__ = "token_blacklist"
+
+    jti: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 

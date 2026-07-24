@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class CartItemCreate(BaseModel):
-    variant_id: int
+    subvariant_id: int
     quantity: int = 1
 
 
@@ -14,12 +14,12 @@ class CartItemUpdate(BaseModel):
 
 class CartItemResponse(BaseModel):
     id: int
-    variant_id: int
+    subvariant_id: int
     quantity: int
+    subvariant_name: str
     variant_name: str
     variant_sku: str
-    size: str | None
-    color: str | None
+    attributes: dict
     price: float
     image_url: str | None
     stock: int

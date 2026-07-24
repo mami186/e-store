@@ -6,16 +6,16 @@ from pydantic import BaseModel
 
 
 class WishlistItemCreate(BaseModel):
-    variant_id: int
+    subvariant_id: int
 
 
 class WishlistItemResponse(BaseModel):
     id: int
-    variant_id: int
+    subvariant_id: int
+    subvariant_name: str
     variant_name: str
     variant_sku: str
-    size: str | None
-    color: str | None
+    attributes: dict
     price: float
     image_url: str | None
     added_at: datetime

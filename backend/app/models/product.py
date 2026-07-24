@@ -8,6 +8,7 @@ from sqlalchemy import (
     DECIMAL,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -29,6 +30,7 @@ class Product(Base):
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="draft")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -56,15 +58,27 @@ class Product(Base):
 
     @property
     def min_price(self) -> float | None:
-        if not self.variants:
-            return None
-        return min(v.price for v in self.variants if v.is_active)
+        prices = []
+        for v in self.variants:
+            if not v.is_active:
+                continue
+            for sv in v.subvariants:
+                if not sv.is_active:
+                    continue
+                prices.append(sv.effective_price)
+        return min(prices) if prices else None
 
     @property
     def max_price(self) -> float | None:
-        if not self.variants:
-            return None
-        return max(v.price for v in self.variants if v.is_active)
+        prices = []
+        for v in self.variants:
+            if not v.is_active:
+                continue
+            for sv in v.subvariants:
+                if not sv.is_active:
+                    continue
+                prices.append(sv.effective_price)
+        return max(prices) if prices else None
 
 
 class ProductVariant(Base):
@@ -77,13 +91,13 @@ class ProductVariant(Base):
     )
     sku: Mapped[str] = mapped_column(String(100), nullable=False)
     variant_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    size: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    color: Mapped[str | None] = mapped_column(String(50), nullable=True)
     price: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
     compare_at_price: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
     stock: Mapped[int] = mapped_column(Integer, default=0)
+    attributes: Mapped[dict] = mapped_column(JSON, default=dict)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -95,19 +109,57 @@ class ProductVariant(Base):
 
     product: Mapped["Product"] = relationship(back_populates="variants")
     images: Mapped[list["ProductImage"]] = relationship(back_populates="variant", lazy="selectin")
-    cart_items: Mapped[list["CartItem"]] = relationship(back_populates="variant")
-    wishlist_items: Mapped[list["WishlistItem"]] = relationship(back_populates="variant")
-    order_items: Mapped[list["OrderItem"]] = relationship(back_populates="variant")
-
-    @property
-    def image_url(self) -> str | None:
-        return self.images[0].url if self.images else None
+    subvariants: Mapped[list["ProductSubVariant"]] = relationship(
+        back_populates="variant", cascade="all, delete-orphan", lazy="selectin"
+    )
 
     @property
     def discount_percent(self) -> float | None:
         if self.compare_at_price and self.compare_at_price > self.price:
             return round((1 - self.price / self.compare_at_price) * 100, 1)
         return None
+
+
+class ProductSubVariant(Base):
+    __tablename__ = "product_subvariants"
+    __table_args__ = (UniqueConstraint("variant_id", "sku"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    variant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=False
+    )
+    sku: Mapped[str] = mapped_column(String(100), nullable=False)
+    subvariant_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    price: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
+    stock: Mapped[int] = mapped_column(Integer, default=0)
+    attributes: Mapped[dict] = mapped_column(JSON, default=dict)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    variant: Mapped["ProductVariant"] = relationship(back_populates="subvariants")
+    images: Mapped[list["ProductImage"]] = relationship(
+        back_populates="subvariant", lazy="selectin"
+    )
+    cart_items: Mapped[list["CartItem"]] = relationship(back_populates="subvariant")
+    wishlist_items: Mapped[list["WishlistItem"]] = relationship(back_populates="subvariant")
+    order_items: Mapped[list["OrderItem"]] = relationship(back_populates="subvariant")
+
+    @property
+    def effective_price(self) -> float:
+        return self.price if self.price is not None else self.variant.price
+
+    @property
+    def image_url(self) -> str | None:
+        return self.images[0].url if self.images else None
 
 
 class ProductImage(Base):
@@ -120,6 +172,9 @@ class ProductImage(Base):
     variant_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("product_variants.id", ondelete="SET NULL"), nullable=True
     )
+    subvariant_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("product_subvariants.id", ondelete="SET NULL"), nullable=True
+    )
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     alt_text: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_main: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -129,6 +184,7 @@ class ProductImage(Base):
 
     product: Mapped["Product"] = relationship(back_populates="images")
     variant: Mapped["ProductVariant | None"] = relationship(back_populates="images")
+    subvariant: Mapped["ProductSubVariant | None"] = relationship(back_populates="images")
 
 
 class ProductComment(Base):
@@ -163,4 +219,72 @@ class ProductComment(Base):
     )
     replies: Mapped[list["ProductComment"]] = relationship(
         back_populates="parent", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class ProductHistory(Base):
+    __tablename__ = "product_history"
+
+    history_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, nullable=False)
+    seller_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    changed_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class VariantHistory(Base):
+    __tablename__ = "variant_history"
+
+    history_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, nullable=False)
+    product_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    sku: Mapped[str] = mapped_column(String(100), nullable=False)
+    variant_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    price: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    compare_at_price: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
+    stock: Mapped[int] = mapped_column(Integer, nullable=False)
+    attributes: Mapped[dict] = mapped_column(JSON, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    changed_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class SubVariantHistory(Base):
+    __tablename__ = "subvariant_history"
+
+    history_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, nullable=False)
+    variant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    sku: Mapped[str] = mapped_column(String(100), nullable=False)
+    subvariant_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    price: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
+    stock: Mapped[int] = mapped_column(Integer, nullable=False)
+    attributes: Mapped[dict] = mapped_column(JSON, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    changed_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

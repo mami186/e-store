@@ -78,6 +78,8 @@ async def admin_toggle_user_status(
     if target.highest_role_id >= current_user.highest_role_id:
         raise ForbiddenException("Cannot modify users with equal or higher role")
     target.is_active = is_active
+    if not is_active:
+        target.token_version += 1
     await db.commit()
     return {"message": "User status updated"}
 

@@ -50,5 +50,6 @@ async def update_password(
     if not verify_password(data.current_password, current_user.password_hash):
         raise UnauthorizedException("Current password is incorrect")
     current_user.password_hash = get_password_hash(data.new_password)
+    current_user.token_version += 1
     await db.commit()
     return {"message": "Password updated"}

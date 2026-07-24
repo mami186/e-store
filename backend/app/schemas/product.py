@@ -11,6 +11,26 @@ class ProductImageResponse(BaseModel):
     alt_text: str | None
     is_main: bool
     variant_id: int | None
+    subvariant_id: int | None
+
+    model_config = {"from_attributes": True}
+
+
+class SubVariantResponse(BaseModel):
+    id: int
+    variant_id: int
+    sku: str
+    subvariant_name: str
+    price: float | None
+    stock: int
+    attributes: dict
+    is_default: bool
+    is_active: bool
+    effective_price: float
+    image_url: str | None
+    images: list[ProductImageResponse]
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -20,14 +40,13 @@ class ProductVariantResponse(BaseModel):
     product_id: int
     sku: str
     variant_name: str
-    size: str | None
-    color: str | None
     price: float
     compare_at_price: float | None
     stock: int
+    attributes: dict
     is_default: bool
     is_active: bool
-    images: list[ProductImageResponse]
+    subvariants: list[SubVariantResponse]
     discount_percent: float | None
 
     model_config = {"from_attributes": True}
@@ -82,22 +101,39 @@ class ProductUpdate(BaseModel):
 class VariantCreate(BaseModel):
     sku: str
     variant_name: str
-    size: str | None = None
-    color: str | None = None
     price: float
     compare_at_price: float | None = None
     stock: int = 0
+    attributes: dict = {}
     is_default: bool = False
 
 
 class VariantUpdate(BaseModel):
     sku: str | None = None
     variant_name: str | None = None
-    size: str | None = None
-    color: str | None = None
     price: float | None = None
     compare_at_price: float | None = None
     stock: int | None = None
+    attributes: dict | None = None
+    is_default: bool | None = None
+    is_active: bool | None = None
+
+
+class SubVariantCreate(BaseModel):
+    sku: str
+    subvariant_name: str
+    price: float | None = None
+    stock: int = 0
+    attributes: dict = {}
+    is_default: bool = False
+
+
+class SubVariantUpdate(BaseModel):
+    sku: str | None = None
+    subvariant_name: str | None = None
+    price: float | None = None
+    stock: int | None = None
+    attributes: dict | None = None
     is_default: bool | None = None
     is_active: bool | None = None
 

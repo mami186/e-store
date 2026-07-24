@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
@@ -8,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import decode_token
-from app.models.user import User
+from app.models.user import TokenBlacklist, User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
@@ -27,10 +29,23 @@ async def get_current_user(
     if not user_id:
         raise UnauthorizedException("Invalid token payload")
 
+    jti = payload.get("jti")
+    if jti:
+        bl_result = await db.execute(
+            select(TokenBlacklist).where(TokenBlacklist.jti == jti)
+        )
+        if bl_result.scalar_one_or_none():
+            raise UnauthorizedException("Token has been revoked")
+
     result = await db.execute(select(User).where(User.id == int(user_id)))
     user = result.scalar_one_or_none()
     if not user or not user.is_active:
         raise UnauthorizedException("User not found or inactive")
+
+    token_ver = payload.get("ver", 0)
+    if token_ver != user.token_version:
+        raise UnauthorizedException("Token has been invalidated. Please log in again")
+
     return user
 
 

@@ -32,16 +32,16 @@ class Cart(Base):
 
 class CartItem(Base):
     __tablename__ = "cart_items"
-    __table_args__ = (UniqueConstraint("cart_id", "variant_id"),)
+    __table_args__ = (UniqueConstraint("cart_id", "subvariant_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cart_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("carts.id", ondelete="CASCADE"), nullable=False
     )
-    variant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=False
+    subvariant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product_subvariants.id", ondelete="CASCADE"), nullable=False
     )
     quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     cart: Mapped["Cart"] = relationship(back_populates="items")
-    variant: Mapped["ProductVariant"] = relationship(back_populates="cart_items")
+    subvariant: Mapped["ProductSubVariant"] = relationship(back_populates="cart_items")

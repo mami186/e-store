@@ -41,12 +41,12 @@ class AddressResponse(BaseModel):
 
 class OrderItemResponse(BaseModel):
     id: int
-    variant_id: int
+    subvariant_id: int
     product_name: str
     variant_name: str
+    subvariant_name: str
     variant_sku: str
-    size: str | None
-    color: str | None
+    attributes: dict
     quantity: int
     unit_price: float
     total_price: float

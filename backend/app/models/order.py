@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, DECIMAL, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, DECIMAL, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -75,17 +75,17 @@ class OrderItem(Base):
     order_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
     )
-    variant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("product_variants.id"), nullable=False
+    subvariant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product_subvariants.id"), nullable=False
     )
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
     variant_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    subvariant_name: Mapped[str] = mapped_column(String(255), nullable=False)
     variant_sku: Mapped[str] = mapped_column(String(100), nullable=False)
-    size: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    color: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    attributes: Mapped[dict] = mapped_column(JSON, default=dict)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
     total_price: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
 
     order: Mapped["Order"] = relationship(back_populates="items")
-    variant: Mapped["ProductVariant"] = relationship(back_populates="order_items")
+    subvariant: Mapped["ProductSubVariant"] = relationship(back_populates="order_items")

@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.exceptions import NotFoundException
 from app.models.cart import Cart, CartItem
 from app.models.order import Address, Order, OrderItem
-from app.models.product import Product, ProductVariant
+from app.models.product import ProductSubVariant
 from app.models.user import User
 from app.schemas.order import (
     AddressCreate,
@@ -102,7 +102,7 @@ async def list_orders(
         select(Order)
         .where(Order.user_id == current_user.id)
         .options(
-            selectinload(Order.items),
+            selectinload(Order.items).selectinload(OrderItem.subvariant),
             selectinload(Order.address),
         )
         .order_by(Order.created_at.desc())
@@ -119,7 +119,10 @@ async def get_order(
     result = await db.execute(
         select(Order)
         .where(Order.id == order_id, Order.user_id == current_user.id)
-        .options(selectinload(Order.items), selectinload(Order.address))
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.subvariant),
+            selectinload(Order.address),
+        )
     )
     order = result.scalar_one_or_none()
     if not order:
@@ -147,11 +150,8 @@ async def create_order(
         .where(Cart.user_id == current_user.id)
         .options(
             selectinload(Cart.items)
-            .selectinload(CartItem.variant)
-            .selectinload(ProductVariant.product),
-            selectinload(Cart.items)
-            .selectinload(CartItem.variant)
-            .selectinload(ProductVariant.images),
+            .selectinload(CartItem.subvariant)
+            .selectinload(ProductSubVariant.variant),
         )
     )
     cart = result.scalar_one_or_none()
@@ -161,29 +161,29 @@ async def create_order(
     subtotal = 0.0
     order_items = []
     for cart_item in cart.items:
-        variant = cart_item.variant
-        if not variant or not variant.is_active or variant.stock < cart_item.quantity:
+        sv = cart_item.subvariant
+        if not sv or not sv.is_active or sv.stock < cart_item.quantity:
             raise NotFoundException(
-                f"Variant '{variant.variant_name if variant else 'N/A'}' is out of stock"
+                f"SubVariant '{sv.subvariant_name if sv else 'N/A'}' is out of stock"
             )
-        unit_price = float(variant.price)
+        unit_price = float(sv.effective_price)
         total_price = unit_price * cart_item.quantity
         subtotal += total_price
 
         order_items.append(
             OrderItem(
-                variant_id=variant.id,
-                product_name=variant.product.name,
-                variant_name=variant.variant_name,
-                variant_sku=variant.sku,
-                size=variant.size,
-                color=variant.color,
+                subvariant_id=sv.id,
+                product_name=sv.variant.product.name,
+                variant_name=sv.variant.variant_name,
+                subvariant_name=sv.subvariant_name,
+                variant_sku=sv.sku,
+                attributes=sv.attributes,
                 quantity=cart_item.quantity,
                 unit_price=unit_price,
                 total_price=total_price,
             )
         )
-        variant.stock -= cart_item.quantity
+        sv.stock -= cart_item.quantity
 
     shipping_cost = 0.0
     total = subtotal + shipping_cost

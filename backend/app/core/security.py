@@ -36,8 +36,9 @@ def _make_token(data: dict, expires_delta: timedelta, token_type: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    new_data = data.copy()
     return _make_token(
-        data,
+        new_data,
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         "access",
     )

@@ -32,18 +32,18 @@ class Wishlist(Base):
 
 class WishlistItem(Base):
     __tablename__ = "wishlist_items"
-    __table_args__ = (UniqueConstraint("wishlist_id", "variant_id"),)
+    __table_args__ = (UniqueConstraint("wishlist_id", "subvariant_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     wishlist_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("wishlists.id", ondelete="CASCADE"), nullable=False
     )
-    variant_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=False
+    subvariant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product_subvariants.id", ondelete="CASCADE"), nullable=False
     )
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     wishlist: Mapped["Wishlist"] = relationship(back_populates="items")
-    variant: Mapped["ProductVariant"] = relationship(back_populates="wishlist_items")
+    subvariant: Mapped["ProductSubVariant"] = relationship(back_populates="wishlist_items")

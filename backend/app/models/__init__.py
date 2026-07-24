@@ -1,8 +1,17 @@
-from app.models.product import Product, ProductVariant, ProductImage, ProductComment
+from app.models.product import (
+    Product,
+    ProductVariant,
+    ProductSubVariant,
+    ProductImage,
+    ProductComment,
+    ProductHistory,
+    VariantHistory,
+    SubVariantHistory,
+)
 from app.models.cart import Cart, CartItem
 from app.models.wishlist import Wishlist, WishlistItem
 from app.models.order import Order, OrderItem, Address
-from app.models.user import User, Role, UserRole, RefreshToken, Seller
+from app.models.user import User, Role, UserRole, RefreshToken, Seller, TokenBlacklist
 
 __all__ = [
     "User",
@@ -10,10 +19,15 @@ __all__ = [
     "UserRole",
     "RefreshToken",
     "Seller",
+    "TokenBlacklist",
     "Product",
     "ProductVariant",
+    "ProductSubVariant",
     "ProductImage",
     "ProductComment",
+    "ProductHistory",
+    "VariantHistory",
+    "SubVariantHistory",
     "Cart",
     "CartItem",
     "Wishlist",
