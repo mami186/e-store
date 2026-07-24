@@ -1,20 +1,18 @@
-import Link from "next/link"
+"use client"
+
+import { useProducts } from "@/hooks/use-products"
+import { ProductGrid } from "@/components/products/product-grid"
 
 export default function HomePage() {
+  const { data: products, isLoading } = useProducts({ limit: 12, sort_by: "created_at", order: "desc" })
+
   return (
-    <div className="flex flex-col items-center justify-center flex-1 py-24">
-      <h1 className="text-4xl font-bold tracking-tight">Welcome to Estore</h1>
-      <p className="mt-4 text-lg text-muted-foreground max-w-md text-center">
-        A clean, minimal e-commerce experience.
-      </p>
-      <div className="mt-8 flex gap-4">
-        <Link
-          href="/search"
-          className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
-        >
-          Browse Products
-        </Link>
-      </div>
+    <div className="mx-auto max-w-7xl px-4 py-8">
+      <section className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight">Featured Products</h1>
+        <p className="mt-1 text-muted-foreground">Discover our latest products</p>
+      </section>
+      <ProductGrid products={products ?? []} isLoading={isLoading} />
     </div>
   )
 }
