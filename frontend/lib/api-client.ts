@@ -3,7 +3,7 @@ import type { TokenResponse } from "@/lib/types"
 import { useAuthStore } from "@/lib/auth-store"
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
+  baseURL: "/api/v1",
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 })

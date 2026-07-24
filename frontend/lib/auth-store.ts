@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      const res = await apiClient.post<TokenResponse>("/auth/refresh", {}, { withCredentials: true })
+      const res = await apiClient.get<TokenResponse>("/auth/session")
       const { access_token } = res.data
       set({ accessToken: access_token, isAuthenticated: true })
       const userRes = await apiClient.get<UserResponse>("/auth/me")

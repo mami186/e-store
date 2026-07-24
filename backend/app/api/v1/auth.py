@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timezone
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from sqlalchemy import select
@@ -36,6 +36,27 @@ from app.api.deps import get_current_active_user, oauth2_scheme
 settings = Settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+REFRESH_COOKIE_KEY = "refresh_token"
+REFRESH_COOKIE_MAX_AGE = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+
+
+def set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE_KEY,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        path="/api/v1/auth",
+    )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=REFRESH_COOKIE_KEY,
+        path="/api/v1/auth",
+    )
+
 DEFAULT_ROLES: list[dict] = [
     {"id": 0, "name": "user", "description": "Basic user"},
     {"id": 1, "name": "seller", "description": "Can create and manage products"},
@@ -56,7 +77,11 @@ async def seed_roles(db: AsyncSession):
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    data: RegisterRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
         raise ConflictException("Email already registered")
@@ -86,11 +111,16 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user)
 
+    set_refresh_cookie(response, refresh_token)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    data: LoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
@@ -108,12 +138,24 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     db.add(db_token)
     await db.commit()
 
+    set_refresh_cookie(response, refresh_token)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    token_hash = hash_token(data.refresh_token)
+async def refresh(
+    request: Request,
+    response: Response,
+    data: RefreshRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    refresh_token = request.cookies.get(REFRESH_COOKIE_KEY)
+    if not refresh_token and data:
+        refresh_token = data.refresh_token
+    if not refresh_token:
+        raise UnauthorizedException("Refresh token missing")
+
+    token_hash = hash_token(refresh_token)
     result = await db.execute(
         select(RefreshToken).where(
             RefreshToken.token_hash == token_hash,
@@ -127,7 +169,7 @@ async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
     db_token.revoked = True
 
-    payload = decode_token(data.refresh_token)
+    payload = decode_token(refresh_token)
     if not payload:
         raise UnauthorizedException("Invalid refresh token")
 
@@ -152,11 +194,16 @@ async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
     )
     await db.commit()
 
+    set_refresh_cookie(response, new_refresh)
     return TokenResponse(access_token=new_access, refresh_token=new_refresh)
 
 
 @router.post("/google", response_model=TokenResponse)
-async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
+async def google_auth(
+    data: GoogleAuthRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     try:
         id_info = id_token.verify_oauth2_token(
             data.code,
@@ -198,12 +245,15 @@ async def google_auth(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db
     db.add(RefreshToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at))
     await db.commit()
 
+    set_refresh_cookie(response, refresh_token)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/logout")
 async def logout(
-    data: RefreshRequest,
+    response: Response,
+    request: Request,
+    data: RefreshRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     access_token: str | None = Depends(oauth2_scheme),
@@ -218,17 +268,23 @@ async def logout(
         if not existing.scalar_one_or_none():
             db.add(TokenBlacklist(jti=jti, expires_at=datetime.fromtimestamp(exp, tz=timezone.utc)))
 
-    token_hash = hash_token(data.refresh_token)
-    result = await db.execute(
-        select(RefreshToken).where(
-            RefreshToken.token_hash == token_hash,
-            RefreshToken.user_id == current_user.id,
-            RefreshToken.revoked == False,
+    refresh_token = request.cookies.get(REFRESH_COOKIE_KEY)
+    if not refresh_token and data:
+        refresh_token = data.refresh_token
+    if refresh_token:
+        token_hash = hash_token(refresh_token)
+        result = await db.execute(
+            select(RefreshToken).where(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.user_id == current_user.id,
+                RefreshToken.revoked == False,
+            )
         )
-    )
-    db_token = result.scalar_one_or_none()
-    if db_token:
-        db_token.revoked = True
+        db_token = result.scalar_one_or_none()
+        if db_token:
+            db_token.revoked = True
+
+    clear_refresh_cookie(response)
     await db.commit()
     return {"message": "Logged out"}
 
@@ -306,3 +362,56 @@ async def list_my_appeals(
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+
+@router.get("/session", response_model=TokenResponse)
+async def get_session(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    refresh_token = request.cookies.get(REFRESH_COOKIE_KEY)
+    if not refresh_token:
+        raise UnauthorizedException("No session")
+
+    token_hash = hash_token(refresh_token)
+    result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.token_hash == token_hash,
+            RefreshToken.revoked == False,
+            RefreshToken.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    db_token = result.scalar_one_or_none()
+    if not db_token:
+        raise UnauthorizedException("Invalid or expired session")
+
+    payload = decode_token(refresh_token)
+    if not payload:
+        raise UnauthorizedException("Invalid session")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise UnauthorizedException("Invalid token payload")
+
+    user_result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = user_result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise UnauthorizedException("User not found or inactive")
+
+    db_token.revoked = True
+
+    new_access = create_access_token({"sub": str(user.id), "ver": user.token_version})
+    new_refresh = create_refresh_token({"sub": str(user.id)})
+    new_hash = hash_token(new_refresh)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+    db.add(
+        RefreshToken(
+            user_id=user.id, token_hash=new_hash, expires_at=expires_at
+        )
+    )
+    await db.commit()
+
+    set_refresh_cookie(response, new_refresh)
+    return TokenResponse(access_token=new_access, refresh_token=new_refresh)
