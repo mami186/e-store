@@ -33,12 +33,15 @@ export function ReviewSection({ productId, comments }: ReviewSectionProps) {
   const { isAuthenticated } = useAuthStore()
   const createComment = useCreateComment(productId)
   const [content, setContent] = useState("")
+  const [rating, setRating] = useState(0)
+  const [hovered, setHovered] = useState(0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim()) return
-    await createComment.mutateAsync({ content: content.trim() })
+    await createComment.mutateAsync({ content: content.trim(), rating: rating || undefined })
     setContent("")
+    setRating(0)
   }
 
   return (
@@ -65,6 +68,31 @@ export function ReviewSection({ productId, comments }: ReviewSectionProps) {
 
       {isAuthenticated && (
         <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                className="transition-colors"
+                onMouseEnter={() => setHovered(star)}
+                onMouseLeave={() => setHovered(0)}
+                onClick={() => setRating(rating === star ? 0 : star)}
+              >
+                <Star
+                  className={`h-5 w-5 ${
+                    star <= (hovered || rating)
+                      ? "fill-current text-amber-500"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              </button>
+            ))}
+            {rating > 0 && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                {rating} / 5
+              </span>
+            )}
+          </div>
           <Textarea
             placeholder="Write a review..."
             value={content}

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.core.exceptions import NotFoundException
+from app.core.exceptions import ForbiddenException, NotFoundException
 from app.models.product import Product, ProductComment
 from app.models.user import User
 from app.schemas.product import CommentCreate, CommentResponse
@@ -43,6 +43,7 @@ async def create_comment(
         parent_comment_id=data.parent_comment_id,
         rating=data.rating,
         content=data.content,
+        status="approved",
     )
     db.add(comment)
     await db.commit()
