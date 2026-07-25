@@ -163,7 +163,7 @@ async def admin_list_products(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_moderator),
 ):
-    query = select(Product)
+    query = select(Product).options(selectinload(Product.category))
     if status:
         query = query.where(Product.status == status)
     query = query.offset(skip).limit(limit).order_by(Product.created_at.desc())

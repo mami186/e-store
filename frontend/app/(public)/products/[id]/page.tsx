@@ -91,7 +91,7 @@ export default function ProductPage({
             <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
             {product.category && (
               <Badge variant="secondary" className="mt-1">
-                {product.category}
+                {product.category.name}
               </Badge>
             )}
           </div>

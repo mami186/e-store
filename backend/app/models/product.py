@@ -16,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.category import Category
 
 
 class Product(Base):
@@ -27,7 +28,9 @@ class Product(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    category_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+    )
     status: Mapped[str] = mapped_column(String(20), default="draft")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
@@ -41,6 +44,7 @@ class Product(Base):
     )
 
     seller: Mapped["Seller"] = relationship(back_populates="products")
+    category: Mapped["Category | None"] = relationship(back_populates="products")
     variants: Mapped[list["ProductVariant"]] = relationship(
         back_populates="product", cascade="all, delete-orphan", lazy="selectin"
     )

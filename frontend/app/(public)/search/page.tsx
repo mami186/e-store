@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useState, useCallback } from "react"
 import { useProducts } from "@/hooks/use-products"
+import { useCategories } from "@/hooks/use-categories"
 import { ProductGrid } from "@/components/products/product-grid"
 import { Pagination } from "@/components/ui/pagination"
 import { Input } from "@/components/ui/input"
@@ -21,18 +22,23 @@ function SearchContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "")
+  const { data: categories } = useCategories()
 
   const q = searchParams.get("q") || ""
-  const category = searchParams.get("category") || ""
+  const categoryId = searchParams.get("category_id") || ""
   const sortBy = (searchParams.get("sort_by") || "created_at") as "created_at" | "name"
   const order = (searchParams.get("order") || "desc") as "asc" | "desc"
   const page = parseInt(searchParams.get("page") || "1", 10)
 
   const skip = (page - 1) * LIMIT
 
+  const categoryFilter = categoryId ? parseInt(categoryId) : undefined
+
   const { data: products, isLoading } = useProducts({
-    q, category, sort_by: sortBy, order, skip, limit: LIMIT,
+    category_id: categoryFilter, q, sort_by: sortBy, order, skip, limit: LIMIT,
   })
+
+  const selectedCategory = categories?.find((c) => c.id === categoryFilter)
 
   const updateParams = useCallback(
     (updates: Record<string, string>) => {
@@ -64,9 +70,23 @@ function SearchContent() {
         </form>
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            {q ? `Results for "${q}"` : category ? `Category: ${category}` : "All products"}
+            {q ? `Results for "${q}"` : selectedCategory ? `Category: ${selectedCategory.name}` : "All products"}
           </p>
           <div className="flex items-center gap-2">
+            <select
+              value={categoryId}
+              onChange={(e) =>
+                updateParams({ category_id: e.target.value, page: "1" })
+              }
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+            >
+              <option value="">All Categories</option>
+              {categories?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
             <Select
               value={`${sortBy}-${order}`}
               onValueChange={(val) => {

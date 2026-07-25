@@ -1,4 +1,4 @@
-DB_URL = $(shell grep -E '^DATABASE_URL=' .env | head -1 | cut -d= -f2- | sed 's/+asyncpg//')
+DB_URL = $(shell grep -E '^DATABASE_URL=' .env | head -1 | cut -d= -f2- | sed 's/+asyncpg//' | sed 's/?.*//')?sslmode=disable
 
 .PHONY: apply reset fresh status
 

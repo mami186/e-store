@@ -1,3 +1,4 @@
+from app.models.category import Category
 from app.models.report import Report
 from app.models.restriction import Restriction, RestrictionReason, RestrictionProduct, Appeal
 from app.models.product import (
@@ -16,6 +17,7 @@ from app.models.order import Order, OrderItem, Address
 from app.models.user import User, Role, UserRole, RefreshToken, Seller, TokenBlacklist
 
 __all__ = [
+    "Category",
     "User",
     "Role",
     "UserRole",

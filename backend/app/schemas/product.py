@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.schemas.category import CategoryResponse
+
 
 class ProductImageResponse(BaseModel):
     id: int
@@ -66,7 +68,7 @@ class ProductResponse(BaseModel):
     seller_id: int
     name: str
     description: str | None
-    category: str | None
+    category: CategoryResponse | None
     status: str
     is_active: bool
     variants: list[ProductVariantResponse]
@@ -83,7 +85,7 @@ class ProductResponse(BaseModel):
 class ProductListItem(BaseModel):
     id: int
     name: str
-    category: str | None
+    category: CategoryResponse | None
     status: str
     is_active: bool
     main_image: str | None
@@ -97,13 +99,13 @@ class ProductListItem(BaseModel):
 class ProductCreate(BaseModel):
     name: str
     description: str | None = None
-    category: str | None = None
+    category_id: int | None = None
 
 
 class ProductUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    category: str | None = None
+    category_id: int | None = None
     status: str | None = None
 
 

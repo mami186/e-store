@@ -11,6 +11,7 @@ async def main():
 
     from app.core.database import async_session
     from app.core.security import get_password_hash
+    from app.models.category import Category
     from app.models.restriction import RestrictionReason
     from app.models.user import User, Role, UserRole
 
@@ -62,6 +63,21 @@ async def main():
                 db.add(RestrictionReason(reason_text=reason_text))
         await db.commit()
         print("Restriction reasons seeded")
+
+        for cat_data in [
+            {"name": "Electronics", "slug": "electronics", "description": "Phones, laptops, accessories and more"},
+            {"name": "Clothing", "slug": "clothing", "description": "Apparel, shoes and accessories"},
+            {"name": "Home & Kitchen", "slug": "home-kitchen", "description": "Furniture, appliances and kitchenware"},
+            {"name": "Books", "slug": "books", "description": "Books, e-books and educational materials"},
+            {"name": "Sports", "slug": "sports", "description": "Sports equipment and outdoor gear"},
+        ]:
+            result = await db.execute(
+                select(Category).where(Category.slug == cat_data["slug"])
+            )
+            if not result.scalar_one_or_none():
+                db.add(Category(**cat_data))
+        await db.commit()
+        print("Categories seeded")
 
 
 if __name__ == "__main__":

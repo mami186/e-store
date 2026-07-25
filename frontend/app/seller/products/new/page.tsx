@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useCategories } from "@/hooks/use-categories"
 import { useCreateProduct, useCreateVariant, useCreateSubVariant } from "@/hooks/use-seller-products"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,13 +33,14 @@ const newKey = () => `k_${++keyCounter}`
 
 export default function NewProductPage() {
   const router = useRouter()
+  const { data: categories } = useCategories()
   const createProduct = useCreateProduct()
   const createVariant = useCreateVariant()
   const createSubVariant = useCreateSubVariant()
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [category, setCategory] = useState("")
+  const [categoryId, setCategoryId] = useState<number | "">("")
   const [variants, setVariants] = useState<VariantForm[]>([])
 
   const addVariant = () => {
@@ -111,7 +113,7 @@ export default function NewProductPage() {
     const product = await createProduct.mutateAsync({
       name,
       description: description || undefined,
-      category: category || undefined,
+      category_id: categoryId || undefined,
     })
 
     for (const v of variants) {
@@ -167,7 +169,18 @@ export default function NewProductPage() {
             </div>
             <div className="space-y-1">
               <Label>Category</Label>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+              <select
+                className="w-full rounded-md border border-input bg-transparent p-2 text-sm"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : "")}
+              >
+                <option value="">None</option>
+                {categories?.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </CardContent>
         </Card>

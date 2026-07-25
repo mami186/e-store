@@ -73,6 +73,18 @@ export interface SellerUpdate {
   payout_account?: string
 }
 
+// ─── Category ───
+export interface CategoryResponse {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  parent_id: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 // ─── Product ───
 export interface ProductImageResponse {
   id: number
@@ -125,7 +137,7 @@ export interface ProductResponse {
   seller_id: number
   name: string
   description: string | null
-  category: string | null
+  category: CategoryResponse | null
   status: string
   is_active: boolean
   variants: ProductVariantResponse[]
@@ -140,7 +152,7 @@ export interface ProductResponse {
 export interface ProductListItem {
   id: number
   name: string
-  category: string | null
+  category: CategoryResponse | null
   status: string
   is_active: boolean
   main_image: string | null
@@ -152,13 +164,13 @@ export interface ProductListItem {
 export interface ProductCreate {
   name: string
   description?: string
-  category?: string
+  category_id?: number
 }
 
 export interface ProductUpdate {
   name?: string
   description?: string
-  category?: string
+  category_id?: number
   status?: string
 }
 
@@ -409,7 +421,7 @@ export interface PaginationParams {
 }
 
 export interface ProductFilters extends PaginationParams {
-  category?: string
+  category_id?: number
   seller_id?: number
   q?: string
   sort_by?: "created_at" | "name"

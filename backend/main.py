@@ -9,6 +9,7 @@ from app.api.v1 import (
     admin,
     auth,
     carts,
+    categories,
     comments,
     images,
     orders,
@@ -69,6 +70,7 @@ app = FastAPI(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(sellers.router, prefix="/api/v1")
+app.include_router(categories.router, prefix="/api/v1")
 app.include_router(products.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(carts.router, prefix="/api/v1")

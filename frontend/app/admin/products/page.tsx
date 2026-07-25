@@ -61,7 +61,7 @@ export default function AdminProductsPage() {
                 )}
                 <div className="flex-1 space-y-1">
                   <p className="font-medium">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.category}</p>
+                  <p className="text-xs text-muted-foreground">{p.category?.name}</p>
                   <Badge className={statusColors[p.status] || ""}>
                     {p.status}
                   </Badge>

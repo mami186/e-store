@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
@@ -52,19 +53,20 @@ async def create_product(
         seller_id=current_user.id,
         name=data.name,
         description=data.description,
-        category=data.category,
+        category_id=data.category_id,
     )
     db.add(product)
     await db.commit()
     await db.refresh(product)
     _ = product.variants
     _ = product.images
+    _ = product.category
     return product
 
 
 @router.get("", response_model=list[ProductListItem])
 async def list_products(
-    category: str | None = None,
+    category_id: int | None = None,
     seller_id: int | None = None,
     q: str | None = None,
     sort_by: str = Query("created_at", pattern=r"^(created_at|name)$"),
@@ -75,6 +77,7 @@ async def list_products(
 ):
     query = (
         select(Product)
+        .options(selectinload(Product.category))
         .where(
             Product.is_active == True,
             Product.status == "published",
@@ -87,8 +90,8 @@ async def list_products(
         )
     )
 
-    if category:
-        query = query.where(Product.category == category)
+    if category_id:
+        query = query.where(Product.category_id == category_id)
     if seller_id:
         query = query.where(Product.seller_id == seller_id)
     if q:
@@ -116,6 +119,7 @@ async def get_product(
         raise NotFoundException("Product not found")
     _ = product.variants
     _ = product.images
+    _ = product.category
     for v in product.variants:
         _ = v.subvariants
     return product
@@ -135,7 +139,7 @@ async def update_product(
     if product.seller_id != current_user.id:
         raise ForbiddenException("Not your product")
 
-    if data.name is not None or data.description is not None or data.category is not None:
+    if data.name is not None or data.description is not None or data.category_id is not None:
         restriction_result = await db.execute(
             select(Restriction).where(
                 Restriction.user_id == current_user.id,
@@ -151,8 +155,8 @@ async def update_product(
         product.name = data.name
     if data.description is not None:
         product.description = data.description
-    if data.category is not None:
-        product.category = data.category
+    if data.category_id is not None:
+        product.category_id = data.category_id
     if data.status is not None:
         product.status = data.status
     product.version += 1
@@ -160,6 +164,7 @@ async def update_product(
     await db.refresh(product)
     _ = product.variants
     _ = product.images
+    _ = product.category
     for v in product.variants:
         _ = v.subvariants
     return product

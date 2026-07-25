@@ -74,7 +74,7 @@ export default function SellerProductsPage() {
               )}
               <div>
                 <p className="font-medium">{product.name}</p>
-                <p className="text-xs text-muted-foreground">{product.category}</p>
+                <p className="text-xs text-muted-foreground">{product.category?.name}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge className={statusBadge[product.status] || ""}>
                     {product.status}

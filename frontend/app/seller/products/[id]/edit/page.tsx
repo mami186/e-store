@@ -3,6 +3,7 @@
 import { use, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useProduct } from "@/hooks/use-products"
+import { useCategories } from "@/hooks/use-categories"
 import {
   useUpdateProduct,
   useCreateVariant,
@@ -32,6 +33,7 @@ export default function EditProductPage({
   const productId = parseInt(id)
   const router = useRouter()
   const { data: product, isLoading } = useProduct(productId)
+  const { data: categories } = useCategories()
   const updateProduct = useUpdateProduct(productId)
   const createVariant = useCreateVariant()
   const updateVariant = useUpdateVariant()
@@ -42,7 +44,7 @@ export default function EditProductPage({
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [category, setCategory] = useState("")
+  const [categoryId, setCategoryId] = useState<number | "">("")
   const [status, setStatus] = useState("draft")
   const [loaded, setLoaded] = useState(false)
 
@@ -63,7 +65,7 @@ export default function EditProductPage({
   if (!loaded) {
     setName(product.name)
     setDescription(product.description || "")
-    setCategory(product.category || "")
+    setCategoryId(product.category?.id ?? "")
     setStatus(product.status)
     setLoaded(true)
   }
@@ -72,7 +74,7 @@ export default function EditProductPage({
     await updateProduct.mutateAsync({
       name: name || undefined,
       description: description || undefined,
-      category: category || undefined,
+      category_id: categoryId || undefined,
       status: status as "draft" | "published" | "archived" | undefined,
     })
   }
@@ -116,10 +118,21 @@ export default function EditProductPage({
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label>Category</Label>
-                <Input value={category} onChange={(e) => setCategory(e.target.value)} />
-              </div>
+            <div className="space-y-1">
+              <Label>Category</Label>
+              <select
+                className="w-full rounded-md border border-input bg-transparent p-2 text-sm"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value ? parseInt(e.target.value) : "")}
+              >
+                <option value="">None</option>
+                {categories?.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
               <div className="space-y-1">
                 <Label>Status</Label>
                 <select

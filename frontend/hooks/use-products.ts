@@ -5,7 +5,7 @@ import type { ProductListItem, ProductResponse, ProductFilters } from "@/lib/typ
 export function useProducts(filters: ProductFilters = {}) {
   const params = new URLSearchParams()
   if (filters.q) params.set("q", filters.q)
-  if (filters.category) params.set("category", filters.category)
+  if (filters.category_id) params.set("category_id", String(filters.category_id))
   if (filters.seller_id) params.set("seller_id", String(filters.seller_id))
   if (filters.sort_by) params.set("sort_by", filters.sort_by)
   if (filters.order) params.set("order", filters.order)

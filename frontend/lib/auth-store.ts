@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import axios from "axios"
 import apiClient from "@/lib/api-client"
 import type { LoginRequest, RegisterRequest, TokenResponse, UserResponse } from "@/lib/types"
 
@@ -53,7 +54,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      const res = await apiClient.get<TokenResponse>("/auth/session")
+      const res = await axios.get<TokenResponse>("/api/v1/auth/session", {
+        withCredentials: true,
+      })
       const { access_token } = res.data
       set({ accessToken: access_token, isAuthenticated: true })
       const userRes = await apiClient.get<UserResponse>("/auth/me")

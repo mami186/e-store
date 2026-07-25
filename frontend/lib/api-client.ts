@@ -68,10 +68,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        useAuthStore.getState().logout()
-        if (typeof window !== "undefined") {
-          window.location.href = "/login"
-        }
+        useAuthStore.getState().setAccessToken(null)
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
