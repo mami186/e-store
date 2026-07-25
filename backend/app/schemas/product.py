@@ -67,7 +67,8 @@ class ProductResponse(BaseModel):
     id: int
     seller_id: int
     name: str
-    description: str | None
+    short_description: str | None
+    long_description: str | None
     category: CategoryResponse | None
     status: str
     is_active: bool
@@ -98,13 +99,15 @@ class ProductListItem(BaseModel):
 
 class ProductCreate(BaseModel):
     name: str
-    description: str | None = None
+    short_description: str | None = None
+    long_description: str | None = None
     category_id: int | None = None
 
 
 class ProductUpdate(BaseModel):
     name: str | None = None
-    description: str | None = None
+    short_description: str | None = None
+    long_description: str | None = None
     category_id: int | None = None
     status: str | None = None
 

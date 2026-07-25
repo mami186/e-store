@@ -98,8 +98,11 @@ export default function ProductPage({
 
           <p className="text-3xl font-bold">{formatCurrency(price)}</p>
 
-          {product.description && (
-            <p className="text-sm text-muted-foreground">{product.description}</p>
+          {product.short_description && (
+            <p className="text-sm text-muted-foreground">{product.short_description}</p>
+          )}
+          {product.long_description && (
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{product.long_description}</p>
           )}
 
           <Separator />

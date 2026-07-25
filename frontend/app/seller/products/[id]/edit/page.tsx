@@ -43,7 +43,8 @@ export default function EditProductPage({
   const deleteSubVariant = useDeleteSubVariant()
 
   const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
+  const [shortDescription, setShortDescription] = useState("")
+  const [longDescription, setLongDescription] = useState("")
   const [categoryId, setCategoryId] = useState<number | "">("")
   const [status, setStatus] = useState("draft")
   const [loaded, setLoaded] = useState(false)
@@ -64,7 +65,8 @@ export default function EditProductPage({
 
   if (!loaded) {
     setName(product.name)
-    setDescription(product.description || "")
+    setShortDescription(product.short_description || "")
+    setLongDescription(product.long_description || "")
     setCategoryId(product.category?.id ?? "")
     setStatus(product.status)
     setLoaded(true)
@@ -73,7 +75,8 @@ export default function EditProductPage({
   const handleSaveProduct = async () => {
     await updateProduct.mutateAsync({
       name: name || undefined,
-      description: description || undefined,
+      short_description: shortDescription || undefined,
+      long_description: longDescription || undefined,
       category_id: categoryId || undefined,
       status: status as "draft" | "published" | "archived" | undefined,
     })
@@ -109,12 +112,21 @@ export default function EditProductPage({
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Description</Label>
+              <Label>Short Description</Label>
               <textarea
                 className="w-full rounded-md border border-input bg-transparent p-2 text-sm"
-                rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                value={shortDescription}
+                onChange={(e) => setShortDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Long Description</Label>
+              <textarea
+                className="w-full rounded-md border border-input bg-transparent p-2 text-sm"
+                rows={6}
+                value={longDescription}
+                onChange={(e) => setLongDescription(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">

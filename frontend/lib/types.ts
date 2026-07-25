@@ -136,7 +136,8 @@ export interface ProductResponse {
   id: number
   seller_id: number
   name: string
-  description: string | null
+  short_description: string | null
+  long_description: string | null
   category: CategoryResponse | null
   status: string
   is_active: boolean
@@ -163,13 +164,15 @@ export interface ProductListItem {
 
 export interface ProductCreate {
   name: string
-  description?: string
+  short_description?: string
+  long_description?: string
   category_id?: number
 }
 
 export interface ProductUpdate {
   name?: string
-  description?: string
+  short_description?: string
+  long_description?: string
   category_id?: number
   status?: string
 }

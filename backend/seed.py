@@ -156,12 +156,19 @@ async def main():
                 seller_rows[uid] = s
 
         # ── Product Templates ──
-        # Each template: (name, description, category_slug, variants)
+        # Each template: (name, short_description, long_description, category_slug, variants)
         # variant: (variant_name, sku_suffix, price, compare_at_price, stock, attributes_dict, [subvariants])
         # subvariant: (subvariant_name, sku_suffix, price_override_or_None, stock, attributes_dict)
         product_templates = [
             # -- Electronics --
-            ("Wireless Headphones", "Premium noise-cancelling wireless headphones with 30h battery life", "electronics", [
+            ("Wireless Headphones",
+             "Premium noise-cancelling wireless headphones with 30h battery life",
+             "Experience crystal-clear audio with our premium wireless headphones. Featuring advanced active noise cancellation, "
+             "these headphones deliver immersive sound quality in any environment. With 30 hours of battery life, a comfortable "
+             "over-ear design with memory foam ear cushions, and fast USB-C charging, they are perfect for travel, work, or "
+             "daily commutes. The built-in microphone with AI noise reduction ensures hands-free calls are always clear. "
+             "Supports Bluetooth 5.3 for stable connectivity up to 30 feet. Foldable design with included carrying case.",
+             "electronics", [
                 ("Black", "WH-BLK", 89.99, 119.99, 25, {"color": "Black"}, [
                     ("Small", "WH-BLK-S", None, 5, {"size": "Small"}),
                     ("Medium", "WH-BLK-M", None, 15, {"size": "Medium"}),
@@ -172,12 +179,26 @@ async def main():
                     ("Large", "WH-WHT-L", None, 8, {"size": "Large"}),
                 ]),
             ]),
-            ("USB-C Hub 7-in-1", "Multi-port USB-C hub with HDMI, USB 3.0, SD card reader", "electronics", [
+            ("USB-C Hub 7-in-1",
+             "Multi-port USB-C hub with HDMI, USB 3.0, SD card reader",
+             "Expand your laptop's connectivity with this compact 7-in-1 USB-C hub. Featuring 4K HDMI output for external monitors, "
+             "two USB 3.0 ports for high-speed data transfer up to 5Gbps, SD and microSD card readers for photographers, "
+             "and a dedicated USB-C Power Delivery passthrough port supporting up to 100W charging. The slim aluminum "
+             "design matches modern laptops perfectly and dissipates heat efficiently. Plug-and-play with no drivers required. "
+             "Compatible with Windows, Mac, Chrome OS, and Linux. Backed by a 2-year warranty.",
+             "electronics", [
                 ("Gray", "HUB-GRY", 34.99, 49.99, 50, {"color": "Space Gray"}, [
                     ("Standard", "HUB-GRY-STD", None, 50, {}),
                 ]),
             ]),
-            ("Portable Bluetooth Speaker", "Waterproof portable speaker with 360° sound", "electronics", [
+            ("Portable Bluetooth Speaker",
+             "Waterproof portable speaker with 360° sound",
+             "Take your music anywhere with this rugged portable Bluetooth speaker. Delivering true 360-degree immersive sound "
+             "with deep bass and crisp highs, thanks to dual passive radiators and a custom full-range driver. IP67 waterproof "
+             "and dustproof rating means it survives rain, pools, and sandy beaches. Up to 20 hours of playtime on a single "
+             "charge keeps the party going all day long. Built-in microphone for speakerphone calls. USB-C charging and "
+             "a convenient carrying loop. Pair two speakers for stereo mode via Bluetooth 5.0.",
+             "electronics", [
                 ("Blue", "SPK-BLU", 49.99, 69.99, 30, {"color": "Ocean Blue"}, [
                     ("Standard", "SPK-BLU-STD", None, 30, {}),
                 ]),
@@ -189,7 +210,14 @@ async def main():
                 ]),
             ]),
             # -- Clothing --
-            ("Cotton T-Shirt", "Soft 100% organic cotton t-shirt, pre-shrunk", "clothing", [
+            ("Cotton T-Shirt",
+             "Soft 100% organic cotton t-shirt, pre-shrunk",
+             "Crafted from 100% certified organic cotton, this everyday t-shirt combines comfort with sustainability. "
+             "Pre-shrunk fabric ensures your size stays consistent wash after wash. The 180gsm jersey knit offers a "
+             "substantial feel without being heavy. Reinforced neck and shoulder seams prevent stretching, while a "
+             "tagless neck label eliminates irritation. Available in a range of versatile colors. Ethically produced "
+             "in a Fair Trade certified facility. Machine washable — tumble dry low.",
+             "clothing", [
                 ("White", "TS-WHT", 19.99, 29.99, 100, {"color": "White"}, [
                     ("S", "TS-WHT-S", None, 25, {"size": "S"}),
                     ("M", "TS-WHT-M", None, 35, {"size": "M"}),
@@ -206,7 +234,14 @@ async def main():
                     ("XL", "TS-NAV-XL", None, 15, {"size": "XL"}),
                 ]),
             ]),
-            ("Denim Jacket", "Classic denim jacket with modern fit", "clothing", [
+            ("Denim Jacket",
+             "Classic denim jacket with modern fit",
+             "A timeless wardrobe staple reimagined with a contemporary slim fit. Made from 100% heavyweight cotton denim "
+             "with a touch of stretch for comfort. Features classic details including button-front closure, chest pockets "
+             "with button flaps, adjustable waist tabs, and a point collar. The medium-weight fabric (12oz) makes it "
+             "perfect for layering over hoodies or wearing on its own in mild weather. Genuine copper buttons and rivets "
+             "add authentic workwear heritage. Available in light and dark washes with subtle whiskering and hand-sanding.",
+             "clothing", [
                 ("Light Wash", "DJ-LW", 69.99, 89.99, 30, {"color": "Light Wash"}, [
                     ("M", "DJ-LW-M", None, 10, {"size": "M"}),
                     ("L", "DJ-LW-L", None, 15, {"size": "L"}),
@@ -218,7 +253,15 @@ async def main():
                     ("XL", "DJ-DW-XL", None, 5, {"size": "XL"}),
                 ]),
             ]),
-            ("Running Shoes", "Lightweight running shoes with responsive cushioning", "clothing", [
+            ("Running Shoes",
+             "Lightweight running shoes with responsive cushioning",
+             "Engineered for runners who demand both speed and comfort. The engineered mesh upper provides breathability "
+             "and a sock-like fit, while the responsive EVA midsole with heel crash pad delivers smooth heel-to-toe "
+             "transitions. A rubber outsole with strategic traction pattern offers reliable grip on both road and "
+             "light trail surfaces. The 8mm heel-to-toe drop suits most neutral runners. Removable OrthoLite insole "
+             "for customized arch support. Reflective elements for low-light visibility. Weighs just 9.2oz (size 9). "
+             "Perfect for daily training up to marathon distances.",
+             "clothing", [
                 ("Black/White", "RS-BW", 89.99, 129.99, 40, {"color": "Black/White"}, [
                     ("US 8", "RS-BW-8", None, 10, {"size": "US 8"}),
                     ("US 9", "RS-BW-9", None, 15, {"size": "US 9"}),
@@ -231,7 +274,14 @@ async def main():
                 ]),
             ]),
             # -- Home & Kitchen --
-            ("Ceramic Mug Set", "Set of 4 handcrafted ceramic mugs, 12oz each", "home-kitchen", [
+            ("Ceramic Mug Set",
+             "Set of 4 handcrafted ceramic mugs, 12oz each",
+             "Start your morning right with this set of four handcrafted ceramic mugs. Each mug holds 12oz of your "
+             "favorite hot beverage and features a comfortable C-shaped handle for easy gripping. The glossy reactive "
+             "glaze creates a unique depth of color with subtle variations that make each mug one of a kind. Microwave "
+             "and dishwasher safe for everyday convenience. Lead-free and food-safe ceramic construction. The wide "
+             "opening accommodates pour-over brewers and tea steepers alike. Packaged in a gift-ready box.",
+             "home-kitchen", [
                 ("Matte Black", "MUG-BLK", 29.99, 39.99, 40, {"color": "Matte Black"}, [
                     ("Set of 4", "MUG-BLK-4", None, 40, {}),
                 ]),
@@ -239,7 +289,15 @@ async def main():
                     ("Set of 4", "MUG-CRM-4", None, 35, {}),
                 ]),
             ]),
-            ("Bamboo Cutting Board", "Large bamboo cutting board with juice groove", "home-kitchen", [
+            ("Bamboo Cutting Board",
+             "Large bamboo cutting board with juice groove",
+             "This premium bamboo cutting board is built to last and gentle on your knives. Constructured from "
+             "organically grown Moso bamboo — harder than maple and naturally antimicrobial. A deep juice groove "
+             "captures run-off when slicing meats or juicy fruits, keeping countertops clean. The board features "
+             "a hand-grip slot for easy hanging storage and rubber feet to prevent slipping during use. Finished "
+             "with food-safe mineral oil. Reversible design with a flat side for chopping and a grooved side for "
+             "carving. Dimensions: 12x18 inches (medium) or 15x20 inches (large).",
+             "home-kitchen", [
                 ("Medium", "BCB-MED", 19.99, 29.99, 60, {"size": "Medium (12x18)"}, [
                     ("Standard", "BCB-MED-STD", None, 60, {}),
                 ]),
@@ -247,7 +305,15 @@ async def main():
                     ("Standard", "BCB-LRG-STD", None, 40, {}),
                 ]),
             ]),
-            ("Stainless Steel Coffee Maker", "12-cup programmable coffee maker with thermal carafe", "home-kitchen", [
+            ("Stainless Steel Coffee Maker",
+             "12-cup programmable coffee maker with thermal carafe",
+             "Brew up to 12 cups of rich, flavorful coffee with this programmable drip coffee maker. The double-walled "
+             "stainless steel thermal carafe keeps coffee hot for hours without a heating plate — no burnt taste. "
+             "Features include a programmable 24-hour timer, auto-shutoff (0-4 hours), brew-strength selector, "
+             "and a permanent gold-tone mesh filter (no paper filters needed). The pause-and-serve function lets "
+             "you pour a cup mid-brew. The water window with markings makes filling simple. Charcoal water filter "
+             "removes impurities for better-tasting coffee. BPA-free and backed by a 3-year warranty.",
+             "home-kitchen", [
                 ("Silver", "CM-SLV", 59.99, 79.99, 25, {"color": "Brushed Silver"}, [
                     ("Standard", "CM-SLV-STD", None, 25, {}),
                 ]),
@@ -256,7 +322,16 @@ async def main():
                 ]),
             ]),
             # -- Books --
-            ("The Art of Italian Cooking", "Authentic Italian recipes from a Michelin-star chef", "books", [
+            ("The Art of Italian Cooking",
+             "Authentic Italian recipes from a Michelin-star chef",
+             "Discover the secrets of authentic Italian cuisine with this beautifully illustrated cookbook by "
+             "Michelin-starred Chef Marco Bellini. Featuring over 200 recipes organized by region — from the "
+             "sun-drenched shores of Sicily to the alpine valleys of Piedmont. Each recipe includes step-by-step "
+             "instructions, wine pairings, and tips for sourcing authentic ingredients. Special sections cover "
+             "homemade pasta, fresh bread, cured meats, and classic desserts like tiramisu and panna cotta. "
+             "Hardcover edition features 320 pages with full-color photography. A perfect gift for home cooks "
+             "and aspiring chefs alike.",
+             "books", [
                 ("Hardcover", "COOK-HC", 34.99, 44.99, 50, {"binding": "Hardcover"}, [
                     ("Standard", "COOK-HC-STD", None, 50, {}),
                 ]),
@@ -264,7 +339,15 @@ async def main():
                     ("Standard", "COOK-PB-STD", None, 80, {}),
                 ]),
             ]),
-            ("Galactic Frontier", "A gripping sci-fi adventure across the Andromeda galaxy", "books", [
+            ("Galactic Frontier",
+             "A gripping sci-fi adventure across the Andromeda galaxy",
+             "In the year 2187, Captain Elena Vasquez and the crew of the ISS Frontier embark on humanity's first "
+             "intergalactic mission to the Andromeda galaxy. What they discover there will challenge everything "
+             "they know about physics, consciousness, and the origins of life itself. This award-winning debut "
+             "novel combines hard science fiction with deeply human characters and edge-of-your-seat suspense. "
+             "Over 500 pages of immersive world-building. Named Best Sci-Fi Novel of the Year by Galactic Reviews. "
+             "The first book in a planned trilogy. Also available in audiobook, narrated by the author.",
+             "books", [
                 ("Hardcover", "SCI-HC", 28.99, 36.99, 40, {"binding": "Hardcover"}, [
                     ("Standard", "SCI-HC-STD", None, 40, {}),
                 ]),
@@ -275,7 +358,15 @@ async def main():
                     ("Standard", "SCI-EBK-STD", None, 999, {}),
                 ]),
             ]),
-            ("Mindful Growth", "Practical guide to building better habits and achieving goals", "books", [
+            ("Mindful Growth",
+             "Practical guide to building better habits and achieving goals",
+             "Based on the latest research in behavioral psychology and neuroscience, Mindful Growth provides a "
+             "step-by-step framework for breaking old patterns and building lasting positive habits. Author "
+             "Dr. Sarah Chen presents the GROW method — a practical system for Goal setting, Routine building, "
+             "Obstacle planning, and Wins tracking. Packed with exercises, journal prompts, and real-life case "
+             "studies, this book has helped thousands of readers transform their productivity, health, and "
+             "relationships. 280 pages. Includes access to downloadable worksheets and a companion app.",
+             "books", [
                 ("Hardcover", "SELF-HC", 26.99, 34.99, 45, {"binding": "Hardcover"}, [
                     ("Standard", "SELF-HC-STD", None, 45, {}),
                 ]),
@@ -287,7 +378,15 @@ async def main():
                 ]),
             ]),
             # -- Sports --
-            ("Premium Yoga Mat", "Extra thick non-slip yoga mat with carrying strap", "sports", [
+            ("Premium Yoga Mat",
+             "Extra thick non-slip yoga mat with carrying strap",
+             "Elevate your practice with this premium 6mm thick yoga mat engineered for superior grip and cushioning. "
+             "The textured non-slip surface keeps you stable in even the sweatiest hot yoga sessions, while the "
+             "extra padding protects joints during floor poses and inversions. Made from eco-friendly TPE material "
+             "that is free of PVC, latex, and toxic glues. Lightweight at just 2.5 lbs with a included carrying "
+             "strap for easy transport. Dimensions: 72 x 24 inches. Alignment lines help you maintain proper form. "
+             "Easy to clean with mild soap and water. Comes with a 1-year warranty.",
+             "sports", [
                 ("Purple", "YM-PUR", 39.99, 54.99, 40, {"color": "Lavender Purple"}, [
                     ("Standard", "YM-PUR-STD", None, 40, {}),
                 ]),
@@ -298,7 +397,15 @@ async def main():
                     ("Standard", "YM-GRY-STD", None, 45, {}),
                 ]),
             ]),
-            ("Resistance Bands Set", "Set of 5 resistance bands with door anchor and carrying bag", "sports", [
+            ("Resistance Bands Set",
+             "Set of 5 resistance bands with door anchor and carrying bag",
+             "Transform any space into a full-body gym with this complete resistance band set. Includes 5 bands "
+             "with increasing resistance levels from light (10 lbs) to extra heavy (50 lbs), allowing progressive "
+             "overload as you build strength. Made from natural latex with reinforced double-layer seams for "
+             "durability and snap resistance. The set includes a door anchor for over 100 exercise variations, "
+             "two foam-padded handles, two ankle straps, and a carrying bag. Exercise guide with 50+ illustrated "
+             "moves included. Perfect for home workouts, travel, or office fitness breaks. TSA-friendly for air travel.",
+             "sports", [
                 ("Light", "RB-LT", 14.99, 24.99, 70, {"level": "Light (10-20 lbs)"}, [
                     ("Standard", "RB-LT-STD", None, 70, {}),
                 ]),
@@ -309,7 +416,15 @@ async def main():
                     ("Standard", "RB-PRO-STD", None, 35, {}),
                 ]),
             ]),
-            ("Insulated Water Bottle", "32oz double-wall vacuum insulated water bottle", "sports", [
+            ("Insulated Water Bottle",
+             "32oz double-wall vacuum insulated water bottle",
+             "Stay hydrated all day with this 32oz double-wall vacuum insulated water bottle. Keeps ice water cold "
+             "for up to 24 hours or hot beverages hot for 12 hours. Made from premium 18/8 stainless steel with "
+             "a BPA-free sport cap and leak-proof design. The wide mouth opening makes adding ice cubes easy, "
+             "and fits most standard bottle cages and cup holders. The powder-coated exterior provides a "
+             "non-slip grip and resists scratches and dents. Hand wash recommended. Available in brushed "
+             "stainless and matte black finishes. Lifetime warranty against manufacturing defects.",
+             "sports", [
                 ("Stainless", "WB-SS", 24.99, 34.99, 60, {"color": "Brushed Stainless"}, [
                     ("Standard", "WB-SS-STD", None, 60, {}),
                 ]),
@@ -329,7 +444,7 @@ async def main():
             for _ in range(seller_product_count):
                 tmpl = product_templates[prod_idx % template_count]
                 prod_idx += 1
-                pname, pdesc, pcat_slug, variants_data = tmpl
+                pname, pshort_desc, plong_desc, pcat_slug, variants_data = tmpl
 
                 # check if product already exists for this seller
                 r = await db.execute(
@@ -342,7 +457,8 @@ async def main():
                 product = Product(
                     seller_id=sid,
                     name=pname,
-                    description=pdesc,
+                    short_description=pshort_desc,
+                    long_description=plong_desc,
                     category_id=cats[pcat_slug],
                     status="published",
                     is_active=True,

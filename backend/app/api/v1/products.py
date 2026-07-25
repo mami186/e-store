@@ -52,15 +52,22 @@ async def create_product(
     product = Product(
         seller_id=current_user.id,
         name=data.name,
-        description=data.description,
+        short_description=data.short_description,
+        long_description=data.long_description,
         category_id=data.category_id,
     )
     db.add(product)
     await db.commit()
-    await db.refresh(product)
-    _ = product.variants
-    _ = product.images
-    _ = product.category
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .where(Product.id == product.id)
+    )
+    product = result.scalar_one()
     return product
 
 
@@ -96,7 +103,7 @@ async def list_products(
         query = query.where(Product.seller_id == seller_id)
     if q:
         query = query.where(
-            or_(Product.name.ilike(f"%{q}%"), Product.description.ilike(f"%{q}%"))
+            or_(Product.name.ilike(f"%{q}%"), Product.short_description.ilike(f"%{q}%"))
         )
 
     sort_column = {"created_at": Product.created_at, "name": Product.name}[sort_by]
@@ -113,15 +120,18 @@ async def get_product(
     product_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .where(Product.id == product_id)
+    )
     product = result.scalar_one_or_none()
     if not product:
         raise NotFoundException("Product not found")
-    _ = product.variants
-    _ = product.images
-    _ = product.category
-    for v in product.variants:
-        _ = v.subvariants
     return product
 
 
@@ -139,7 +149,7 @@ async def update_product(
     if product.seller_id != current_user.id:
         raise ForbiddenException("Not your product")
 
-    if data.name is not None or data.description is not None or data.category_id is not None:
+    if data.name is not None or data.short_description is not None or data.long_description is not None or data.category_id is not None:
         restriction_result = await db.execute(
             select(Restriction).where(
                 Restriction.user_id == current_user.id,
@@ -153,20 +163,26 @@ async def update_product(
 
     if data.name is not None:
         product.name = data.name
-    if data.description is not None:
-        product.description = data.description
+    if data.short_description is not None:
+        product.short_description = data.short_description
+    if data.long_description is not None:
+        product.long_description = data.long_description
     if data.category_id is not None:
         product.category_id = data.category_id
     if data.status is not None:
         product.status = data.status
     product.version += 1
     await db.commit()
-    await db.refresh(product)
-    _ = product.variants
-    _ = product.images
-    _ = product.category
-    for v in product.variants:
-        _ = v.subvariants
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .where(Product.id == product.id)
+    )
+    product = result.scalar_one()
     return product
 
 
@@ -222,13 +238,16 @@ async def create_variant(
     )
     db.add(variant)
     await db.commit()
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .where(Product.id == product_id)
+    )
     product = result.scalar_one_or_none()
-    await db.refresh(product)
-    _ = product.variants
-    _ = product.images
-    for v in product.variants:
-        _ = v.subvariants
     return product
 
 
@@ -276,13 +295,16 @@ async def update_variant(
         variant.is_active = data.is_active
     variant.version += 1
     await db.commit()
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .where(Product.id == product_id)
+    )
     product = result.scalar_one_or_none()
-    await db.refresh(product)
-    _ = product.variants
-    _ = product.images
-    for v in product.variants:
-        _ = v.subvariants
     return product
 
 
@@ -358,13 +380,16 @@ async def create_subvariant(
     )
     db.add(sub)
     await db.commit()
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .where(Product.id == product_id)
+    )
     product = result.scalar_one_or_none()
-    await db.refresh(product)
-    _ = product.variants
-    _ = product.images
-    for v in product.variants:
-        _ = v.subvariants
     return product
 
 
@@ -412,13 +437,16 @@ async def update_subvariant(
         sub.is_active = data.is_active
     sub.version += 1
     await db.commit()
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .where(Product.id == product_id)
+    )
     product = result.scalar_one_or_none()
-    await db.refresh(product)
-    _ = product.variants
-    _ = product.images
-    for v in product.variants:
-        _ = v.subvariants
     return product
 
 
@@ -459,19 +487,23 @@ async def report_product(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product)
+        .options(
+            selectinload(Product.variants).selectinload(ProductVariant.subvariants),
+        )
+        .where(Product.id == product_id)
+    )
     product = result.scalar_one_or_none()
     if not product:
         raise NotFoundException("Product not found")
 
-    _ = product.variants
     version_vector = {
         "product_version": product.version,
         "variants": [],
     }
     for v in product.variants:
         v_info = {"variant_id": v.id, "variant_version": v.version, "subvariants": []}
-        _ = v.subvariants
         for sv in v.subvariants:
             v_info["subvariants"].append({
                 "subvariant_id": sv.id,
