@@ -11,6 +11,7 @@ from app.models.product import (
     VariantHistory,
     SubVariantHistory,
 )
+from app.models.rating import ProductRating, CommentReport
 from app.models.cart import Cart, CartItem
 from app.models.wishlist import Wishlist, WishlistItem
 from app.models.order import Order, OrderItem, Address
@@ -32,6 +33,8 @@ __all__ = [
     "ProductHistory",
     "VariantHistory",
     "SubVariantHistory",
+    "ProductRating",
+    "CommentReport",
     "Cart",
     "CartItem",
     "Wishlist",

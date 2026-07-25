@@ -222,9 +222,12 @@ export interface CommentResponse {
   id: number
   product_id: number
   user_id: number
+  user_name: string
+  user_avatar_url: string | null
   parent_comment_id: number | null
   rating: number | null
   content: string
+  image_url: string | null
   status: string
   created_at: string
   replies: CommentResponse[]
@@ -234,6 +237,42 @@ export interface CommentCreate {
   content: string
   rating?: number
   parent_comment_id?: number
+  image_url?: string
+}
+
+export interface CommentReportCreate {
+  reason: string
+  description?: string
+}
+
+export interface CommentReportResponse {
+  id: number
+  comment_id: number
+  reporter_id: number
+  reason: string
+  description: string | null
+  status: string
+  created_at: string
+}
+
+// ─── Ratings ───
+export interface RatingCreate {
+  rating: number
+}
+
+export interface RatingResponse {
+  id: number
+  user_id: number
+  product_id: number
+  rating: number
+  created_at: string
+  updated_at: string
+}
+
+export interface RatingStats {
+  average: number
+  total: number
+  distribution: number[]
 }
 
 // ─── Reports ───

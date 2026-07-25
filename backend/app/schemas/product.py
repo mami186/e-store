@@ -170,17 +170,38 @@ class CommentCreate(BaseModel):
     content: str
     rating: int | None = None
     parent_comment_id: int | None = None
+    image_url: str | None = None
 
 
 class CommentResponse(BaseModel):
     id: int
     product_id: int
     user_id: int
+    user_name: str
+    user_avatar_url: str | None
     parent_comment_id: int | None
     rating: int | None
     content: str
+    image_url: str | None
     status: str
     created_at: datetime
     replies: list[CommentResponse]
+
+    model_config = {"from_attributes": True}
+
+
+class CommentReportCreate(BaseModel):
+    reason: str
+    description: str | None = None
+
+
+class CommentReportResponse(BaseModel):
+    id: int
+    comment_id: int
+    reporter_id: int
+    reason: str
+    description: str | None
+    status: str
+    created_at: datetime
 
     model_config = {"from_attributes": True}

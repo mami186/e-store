@@ -45,12 +45,12 @@ class StorageService:
             self._client = None
         return self._client
 
-    async def upload_fileobj(self, file: BytesIO, filename: str | None = None) -> str | None:
+    async def upload_fileobj(self, file: BytesIO, filename: str | None = None, prefix: str = "products") -> str | None:
         client = await self._get_client()
         if not client:
             return None
         ext = filename.split(".")[-1] if filename and "." in filename else "bin"
-        key = f"products/{uuid.uuid4().hex}.{ext}"
+        key = f"{prefix}/{uuid.uuid4().hex}.{ext}"
         try:
             await client.upload_fileobj(file, self.bucket, key, ExtraArgs={"ACL": "private"})
             return key

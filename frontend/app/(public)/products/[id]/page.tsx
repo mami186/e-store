@@ -3,7 +3,7 @@
 import { use, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useProduct } from "@/hooks/use-products"
-import { useComments } from "@/hooks/use-comments"
+
 import { useAddToCart } from "@/hooks/use-cart"
 import { useAuthStore } from "@/lib/auth-store"
 import { formatCurrency } from "@/lib/utils"
@@ -28,7 +28,6 @@ export default function ProductPage({
   const addToCart = useAddToCart()
 
   const { data: product, isLoading, error } = useProduct(productId)
-  const { data: comments } = useComments(productId)
 
   const [selectedSubVariant, setSelectedSubVariant] = useState<SubVariantResponse | null>(null)
   const [quantity, setQuantity] = useState(1)
@@ -169,7 +168,7 @@ export default function ProductPage({
 
       {/* Reviews */}
       <Separator className="my-12" />
-      <ReviewSection productId={productId} comments={comments ?? []} />
+      <ReviewSection productId={productId} />
     </div>
   )
 }

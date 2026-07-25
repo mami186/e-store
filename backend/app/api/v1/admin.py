@@ -236,12 +236,14 @@ async def admin_list_comments(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_moderator),
 ):
-    query = select(ProductComment)
+    query = select(ProductComment).options(selectinload(ProductComment.user))
     if status:
         query = query.where(ProductComment.status == status)
     query = query.offset(skip).limit(limit).order_by(ProductComment.created_at.desc())
     result = await db.execute(query)
-    return result.scalars().all()
+    comments = result.scalars().all()
+    from app.api.v1.comments import _format_comment
+    return [_format_comment(c) for c in comments]
 
 
 @router.put("/comments/{comment_id}/status")
