@@ -101,9 +101,6 @@ export default function ProductPage({
           {product.short_description && (
             <p className="text-sm text-muted-foreground">{product.short_description}</p>
           )}
-          {product.long_description && (
-            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{product.long_description}</p>
-          )}
 
           <Separator />
 
@@ -156,6 +153,19 @@ export default function ProductPage({
           </div>
         </div>
       </div>
+
+      {/* Long Description */}
+      {product.long_description && (
+        <>
+          <Separator className="my-12" />
+          <div>
+            <h2 className="mb-4 text-lg font-semibold">Description</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+              {product.long_description}
+            </p>
+          </div>
+        </>
+      )}
 
       {/* Reviews */}
       <Separator className="my-12" />
