@@ -18,16 +18,18 @@ export function useComments(productId: number, rating: number | null = null) {
   })
 }
 
-export function useCreateComment(productId: number) {
+export function useCreateComment(productId: number, parentCommentId?: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (data: CommentCreate) => {
       const res = await apiClient.post<CommentResponse>(`/products/${productId}/comments`, data)
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["comments", productId] })
-      qc.invalidateQueries({ queryKey: ["rating-stats", productId] })
+      if (variables.parent_comment_id) {
+        qc.invalidateQueries({ queryKey: ["comment-replies", productId, variables.parent_comment_id] })
+      }
     },
   })
 }
@@ -39,6 +41,23 @@ export function useDeleteComment(productId: number) {
       await apiClient.delete(`/products/${productId}/comments/${commentId}`)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["comments", productId] }),
+  })
+}
+
+export function useCommentReplies(productId: number, commentId: number) {
+  return useInfiniteQuery<CommentResponse[]>({
+    queryKey: ["comment-replies", productId, commentId],
+    queryFn: async ({ pageParam }) => {
+      const res = await apiClient.get<CommentResponse[]>(
+        `/products/${productId}/comments/${commentId}/replies`,
+        { params: { page: String(pageParam), limit: "5" } },
+      )
+      return res.data
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      lastPage.length === 5 ? (lastPageParam as number) + 1 : undefined,
+    enabled: !!productId && !!commentId,
   })
 }
 

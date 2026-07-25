@@ -225,17 +225,18 @@ export interface CommentResponse {
   user_name: string
   user_avatar_url: string | null
   parent_comment_id: number | null
-  rating: number | null
+  user_rating: number | null
   content: string
   image_url: string | null
   status: string
+  depth: number
+  reply_count: number
   created_at: string
   replies: CommentResponse[]
 }
 
 export interface CommentCreate {
   content: string
-  rating?: number
   parent_comment_id?: number
   image_url?: string
 }

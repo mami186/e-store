@@ -243,7 +243,7 @@ async def admin_list_comments(
     result = await db.execute(query)
     comments = result.scalars().all()
     from app.api.v1.comments import _format_comment
-    return [_format_comment(c) for c in comments]
+    return [_format_comment(c, reply_count=0) for c in comments]
 
 
 @router.put("/comments/{comment_id}/status")

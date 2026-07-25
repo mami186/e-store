@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { ChevronDown, ChevronRight, Flag, MessageCircle, Star, User } from "lucide-react"
 import type { CommentResponse } from "@/lib/types"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/lib/auth-store"
-import { useCreateComment } from "@/hooks/use-comments"
+import { useCreateComment, useCommentReplies } from "@/hooks/use-comments"
 import { ReportDialog } from "@/components/products/report-dialog"
+
+const MAX_DEPTH = 4
 
 interface CommentCardProps {
   comment: CommentResponse
@@ -24,7 +26,27 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
   const [replyContent, setReplyContent] = useState("")
   const [showReport, setShowReport] = useState(false)
 
-  const hasReplies = comment.replies && comment.replies.length > 0
+  const {
+    data: repliesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useCommentReplies(productId, comment.id)
+
+  const replies = repliesData?.pages.flatMap((p) => p) ?? []
+
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const lastReplyRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (isFetchingNextPage) return
+      if (observerRef.current) observerRef.current.disconnect()
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasNextPage) fetchNextPage()
+      })
+      if (node) observerRef.current.observe(node)
+    },
+    [isFetchingNextPage, hasNextPage, fetchNextPage],
+  )
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,13 +75,13 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
             <span className="text-sm font-medium">{comment.user_name || "Anonymous"}</span>
           </div>
           <div className="flex items-center gap-2">
-            {comment.rating && (
+            {comment.user_rating && (
               <div className="flex items-center gap-0.5">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
                     className={`h-3 w-3 ${
-                      star <= comment.rating!
+                      star <= comment.user_rating!
                         ? "fill-current text-amber-500"
                         : "text-muted-foreground"
                     }`}
@@ -82,7 +104,7 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
         <p className="text-sm">{comment.content}</p>
 
         <div className="mt-2 flex items-center gap-3">
-          {isAuthenticated && depth === 0 && (
+          {isAuthenticated && depth < MAX_DEPTH && (
             <button
               type="button"
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -102,7 +124,7 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
               Report
             </button>
           )}
-          {hasReplies && (
+          {comment.reply_count > 0 && (
             <button
               type="button"
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
@@ -113,7 +135,7 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
               ) : (
                 <ChevronRight className="h-3.5 w-3.5" />
               )}
-              {comment.replies.length} repl{comment.replies.length !== 1 ? "ies" : "y"}
+              {comment.reply_count} repl{comment.reply_count !== 1 ? "ies" : "y"}
             </button>
           )}
         </div>
@@ -139,11 +161,25 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
         )}
       </div>
 
-      {hasReplies && showReplies && (
+      {showReplies && (
         <div className="mt-1 space-y-1">
-          {comment.replies.map((reply) => (
-            <CommentCard key={reply.id} comment={reply} productId={productId} depth={depth + 1} />
+          {replies.map((reply, i) => (
+            <div key={reply.id} ref={i === replies.length - 1 ? lastReplyRef : null}>
+              <CommentCard comment={reply} productId={productId} depth={depth + 1} />
+            </div>
           ))}
+          {isFetchingNextPage && (
+            <p className="text-center text-xs text-muted-foreground py-2">Loading more...</p>
+          )}
+          {hasNextPage && !isFetchingNextPage && (
+            <button
+              type="button"
+              className="ml-6 text-xs text-muted-foreground hover:underline"
+              onClick={() => fetchNextPage()}
+            >
+              Show more replies
+            </button>
+          )}
         </div>
       )}
 

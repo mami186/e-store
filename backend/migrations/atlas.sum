@@ -1,5 +1,6 @@
-h1:2+h3x/2OH98Fu8A9Uk2b8ULMn4DBv7hpOyna2H/9AS4=
+h1:rLkiQiE8mWqauBUPkDzXJIEfKJpbxkVm99pZPJMbE38=
 20260724111824_initial.sql h1:GTRtlIO1yJKw7Y9Vjc3a4MAGqio6BR5vdvgAsWDFHRQ=
 20260725120000_categories.sql h1:JwjLr/y1BAsohEsxNo6mFbkXXvlH1x/7+sWbsmn6xl4=
 20260725140000_rename_description.sql h1:MFYIcaVmjzqtF02D6ZlLPd1IYbppBabyZsZERbZoHPY=
 20260725160000_reviews.sql h1:wEntbxPiYzhF5FheOlcHxPpwHz7aktUtNBLqUn2rORU=
+20260725170000_drop_comment_rating.sql h1:Vp3gAlj/nslTTHqG1Rj7ed5+E/FdrwXNan/qMu9n76o=

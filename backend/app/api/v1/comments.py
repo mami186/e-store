@@ -33,6 +33,31 @@ REPORT_REASONS = [
     "Other",
 ]
 
+MAX_REPLY_DEPTH = 4
+
+
+def _format_comment(
+    comment: ProductComment,
+    user_rating: int | None = None,
+    reply_count: int = 0,
+) -> dict:
+    return {
+        "id": comment.id,
+        "product_id": comment.product_id,
+        "user_id": comment.user_id,
+        "user_name": f"{comment.user.first_name or ''} {comment.user.last_name or ''}".strip() or "Anonymous",
+        "user_avatar_url": comment.user.avatar_url,
+        "parent_comment_id": comment.parent_comment_id,
+        "user_rating": user_rating,
+        "content": comment.content,
+        "image_url": comment.image_url,
+        "status": comment.status,
+        "depth": comment.depth,
+        "reply_count": reply_count,
+        "created_at": comment.created_at.isoformat() if comment.created_at else None,
+        "replies": [],
+    }
+
 
 @router.post("", response_model=CommentResponse, status_code=201)
 async def create_comment(
@@ -46,6 +71,7 @@ async def create_comment(
     if not product:
         raise NotFoundException("Product not found")
 
+    depth = 0
     if data.parent_comment_id:
         result = await db.execute(
             select(ProductComment).where(
@@ -53,40 +79,65 @@ async def create_comment(
                 ProductComment.product_id == product_id,
             )
         )
-        if not result.scalar_one_or_none():
+        parent = result.scalar_one_or_none()
+        if not parent:
             raise NotFoundException("Parent comment not found")
-
-    # handle rating
-    if data.rating is not None:
-        rating_result = await db.execute(
-            select(ProductRating).where(
-                ProductRating.user_id == current_user.id,
-                ProductRating.product_id == product_id,
-            )
-        )
-        existing_rating = rating_result.scalar_one_or_none()
-        if existing_rating:
-            existing_rating.rating = data.rating
-        else:
-            db.add(ProductRating(
-                user_id=current_user.id,
-                product_id=product_id,
-                rating=data.rating,
-            ))
+        if parent.depth >= MAX_REPLY_DEPTH:
+            raise ConflictException("Maximum reply depth reached")
+        depth = parent.depth + 1
 
     comment = ProductComment(
         product_id=product_id,
         user_id=current_user.id,
         parent_comment_id=data.parent_comment_id,
-        rating=data.rating,
+        depth=depth,
         content=data.content,
         image_url=data.image_url,
         status="approved",
     )
     db.add(comment)
+    await db.flush()
+    comment_id = comment.id
     await db.commit()
-    await db.refresh(comment)
-    return _format_comment(comment)
+
+    rating_result = await db.execute(
+        select(ProductRating.rating).where(
+            ProductRating.user_id == current_user.id,
+            ProductRating.product_id == product_id,
+        )
+    )
+    user_rating = rating_result.scalar()
+
+    query = (
+        select(ProductComment)
+        .where(ProductComment.id == comment_id)
+        .options(selectinload(ProductComment.user))
+    )
+    result = await db.execute(query)
+    comment = result.scalar_one()
+    return _format_comment(comment, user_rating=user_rating)
+
+
+async def _batch_reply_counts(
+    db: AsyncSession,
+    product_id: int,
+    comment_ids: list[int],
+) -> dict[int, int]:
+    if not comment_ids:
+        return {}
+    result = await db.execute(
+        select(
+            ProductComment.parent_comment_id,
+            func.count(ProductComment.id),
+        )
+        .where(
+            ProductComment.product_id == product_id,
+            ProductComment.parent_comment_id.in_(comment_ids),
+            ProductComment.status == "approved",
+        )
+        .group_by(ProductComment.parent_comment_id)
+    )
+    return dict(result.all())
 
 
 @router.get("", response_model=list[CommentResponse])
@@ -104,19 +155,103 @@ async def list_comments(
             ProductComment.parent_comment_id == None,
             ProductComment.status == "approved",
         )
-        .options(selectinload(ProductComment.replies).selectinload(ProductComment.user))
         .options(selectinload(ProductComment.user))
         .order_by(ProductComment.created_at.desc())
     )
 
     if rating is not None:
-        query = query.where(ProductComment.rating == rating)
+        rating_subq = (
+            select(ProductRating.user_id)
+            .where(
+                ProductRating.product_id == product_id,
+                ProductRating.rating == rating,
+            )
+        )
+        query = query.where(ProductComment.user_id.in_(rating_subq))
 
     offset = (page - 1) * limit
     query = query.offset(offset).limit(limit)
     result = await db.execute(query)
     comments = result.scalars().all()
-    return [_format_comment(c) for c in comments]
+
+    # batch user ratings
+    user_ids = list({c.user_id for c in comments})
+    rating_map: dict[int, int | None] = {}
+    if user_ids:
+        rating_result = await db.execute(
+            select(ProductRating.user_id, ProductRating.rating)
+            .where(
+                ProductRating.product_id == product_id,
+                ProductRating.user_id.in_(user_ids),
+            )
+        )
+        for uid, r in rating_result:
+            rating_map[uid] = r
+
+    # batch reply counts
+    comment_ids = [c.id for c in comments]
+    rc_map = await _batch_reply_counts(db, product_id, comment_ids)
+
+    return [
+        _format_comment(c, user_rating=rating_map.get(c.user_id), reply_count=rc_map.get(c.id, 0))
+        for c in comments
+    ]
+
+
+@router.get("/{comment_id}/replies", response_model=list[CommentResponse])
+async def list_comment_replies(
+    product_id: int,
+    comment_id: int,
+    page: int = Query(1, ge=1),
+    limit: int = Query(5, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ProductComment).where(
+            ProductComment.id == comment_id,
+            ProductComment.product_id == product_id,
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise NotFoundException("Comment not found")
+
+    query = (
+        select(ProductComment)
+        .where(
+            ProductComment.parent_comment_id == comment_id,
+            ProductComment.status == "approved",
+        )
+        .options(selectinload(ProductComment.user))
+        .order_by(ProductComment.created_at.asc())
+    )
+
+    offset = (page - 1) * limit
+    query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
+    comments = result.scalars().all()
+
+    # batch user ratings
+    user_ids = list({c.user_id for c in comments})
+    rating_map: dict[int, int | None] = {}
+    if user_ids:
+        rating_result = await db.execute(
+            select(ProductRating.user_id, ProductRating.rating)
+            .where(
+                ProductRating.product_id == product_id,
+                ProductRating.user_id.in_(user_ids),
+            )
+        )
+        for uid, r in rating_result:
+            rating_map[uid] = r
+
+    # batch reply counts
+    comment_ids = [c.id for c in comments]
+    rc_map = await _batch_reply_counts(db, product_id, comment_ids)
+
+    return [
+        _format_comment(c, user_rating=rating_map.get(c.user_id), reply_count=rc_map.get(c.id, 0))
+        for c in comments
+    ]
 
 
 @router.delete("/{comment_id}", status_code=204)
@@ -246,20 +381,3 @@ async def upsert_rating(
     await db.commit()
     await db.refresh(rating)
     return rating
-
-
-def _format_comment(comment: ProductComment) -> dict:
-    return {
-        "id": comment.id,
-        "product_id": comment.product_id,
-        "user_id": comment.user_id,
-        "user_name": f"{comment.user.first_name or ''} {comment.user.last_name or ''}".strip() or "Anonymous",
-        "user_avatar_url": comment.user.avatar_url,
-        "parent_comment_id": comment.parent_comment_id,
-        "rating": comment.rating,
-        "content": comment.content,
-        "image_url": comment.image_url,
-        "status": comment.status,
-        "created_at": comment.created_at.isoformat() if comment.created_at else None,
-        "replies": [_format_comment(r) for r in (comment.replies or [])],
-    }

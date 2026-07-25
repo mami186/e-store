@@ -168,7 +168,6 @@ class ReportResponse(BaseModel):
 
 class CommentCreate(BaseModel):
     content: str
-    rating: int | None = None
     parent_comment_id: int | None = None
     image_url: str | None = None
 
@@ -180,12 +179,14 @@ class CommentResponse(BaseModel):
     user_name: str
     user_avatar_url: str | None
     parent_comment_id: int | None
-    rating: int | None
+    user_rating: int | None
     content: str
     image_url: str | None
     status: str
+    depth: int
+    reply_count: int
     created_at: datetime
-    replies: list[CommentResponse]
+    replies: list[CommentResponse] = []
 
     model_config = {"from_attributes": True}
 

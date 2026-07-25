@@ -209,7 +209,7 @@ class ProductComment(Base):
     parent_comment_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("product_comments.id", ondelete="CASCADE"), nullable=True
     )
-    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    depth: Mapped[int] = mapped_column(Integer, default=0)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")
@@ -225,10 +225,10 @@ class ProductComment(Base):
     product: Mapped["Product"] = relationship(back_populates="comments")
     user: Mapped["User"] = relationship(back_populates="comments")
     parent: Mapped["ProductComment | None"] = relationship(
-        back_populates="replies", remote_side="ProductComment.id", lazy="selectin"
+        back_populates="replies", remote_side="ProductComment.id", lazy="noload"
     )
     replies: Mapped[list["ProductComment"]] = relationship(
-        back_populates="parent", cascade="all, delete-orphan", lazy="selectin"
+        back_populates="parent", cascade="all, delete-orphan", lazy="noload"
     )
 
 
