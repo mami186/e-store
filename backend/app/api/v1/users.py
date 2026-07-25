@@ -3,11 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, NotFoundException, UnauthorizedException
 from app.core.security import get_password_hash, verify_password
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import PasswordUpdate, UserResponse, UserUpdate
 from app.api.deps import get_current_active_user
 
@@ -34,8 +35,14 @@ async def update_me(
         current_user.first_name = data.first_name
     if data.last_name is not None:
         current_user.last_name = data.last_name
+    user_id = current_user.id
     await db.commit()
-    await db.refresh(current_user)
+    result = await db.execute(
+        select(User)
+        .where(User.id == user_id)
+        .options(selectinload(User.user_roles).selectinload(UserRole.role))
+    )
+    current_user = result.scalar_one()
     return current_user
 
 

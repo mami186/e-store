@@ -47,14 +47,14 @@ def set_refresh_cookie(response: Response, token: str) -> None:
         httponly=True,
         samesite="lax",
         max_age=REFRESH_COOKIE_MAX_AGE,
-        path="/api/v1/auth",
+        path="/",
     )
 
 
 def clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(
         key=REFRESH_COOKIE_KEY,
-        path="/api/v1/auth",
+        path="/",
     )
 
 DEFAULT_ROLES: list[dict] = [

@@ -14,7 +14,7 @@ const authRequiredRoutes = [
 const sellerRoutes = ["/seller"]
 const adminRoutes = ["/admin"]
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const hasRefreshCookie = request.cookies.has("refresh_token")
 

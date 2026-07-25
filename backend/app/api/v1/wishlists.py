@@ -16,10 +16,10 @@ from app.api.deps import get_current_active_user
 router = APIRouter(prefix="/wishlist", tags=["wishlist"])
 
 
-async def get_or_create_wishlist(user: User, db: AsyncSession) -> Wishlist:
+async def get_or_create_wishlist(user_id: int, db: AsyncSession) -> Wishlist:
     result = await db.execute(
         select(Wishlist)
-        .where(Wishlist.user_id == user.id)
+        .where(Wishlist.user_id == user_id)
         .options(
             selectinload(Wishlist.items)
             .selectinload(WishlistItem.subvariant)
@@ -28,10 +28,21 @@ async def get_or_create_wishlist(user: User, db: AsyncSession) -> Wishlist:
     )
     wishlist = result.scalar_one_or_none()
     if not wishlist:
-        wishlist = Wishlist(user_id=user.id)
+        wishlist = Wishlist(user_id=user_id)
         db.add(wishlist)
+        await db.flush()
+        wishlist_id = wishlist.id
         await db.commit()
-        await db.refresh(wishlist)
+        result = await db.execute(
+            select(Wishlist)
+            .where(Wishlist.id == wishlist_id)
+            .options(
+                selectinload(Wishlist.items)
+                .selectinload(WishlistItem.subvariant)
+                .selectinload(ProductSubVariant.variant),
+            )
+        )
+        wishlist = result.scalar_one()
     return wishlist
 
 
@@ -60,7 +71,7 @@ async def get_wishlist(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    wishlist = await get_or_create_wishlist(current_user, db)
+    wishlist = await get_or_create_wishlist(current_user.id, db)
     return build_wishlist_response(wishlist)
 
 
@@ -70,7 +81,7 @@ async def add_to_wishlist(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    wishlist = await get_or_create_wishlist(current_user, db)
+    wishlist = await get_or_create_wishlist(current_user.id, db)
 
     result = await db.execute(
         select(ProductSubVariant).where(ProductSubVariant.id == data.subvariant_id)
@@ -90,7 +101,7 @@ async def add_to_wishlist(
     item = WishlistItem(wishlist_id=wishlist.id, subvariant_id=data.subvariant_id)
     db.add(item)
     await db.commit()
-    wishlist = await get_or_create_wishlist(current_user, db)
+    wishlist = await get_or_create_wishlist(current_user.id, db)
     return build_wishlist_response(wishlist)
 
 
@@ -100,7 +111,7 @@ async def remove_from_wishlist(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    wishlist = await get_or_create_wishlist(current_user, db)
+    wishlist = await get_or_create_wishlist(current_user.id, db)
     result = await db.execute(
         select(WishlistItem).where(
             WishlistItem.id == item_id, WishlistItem.wishlist_id == wishlist.id
@@ -111,5 +122,5 @@ async def remove_from_wishlist(
         raise NotFoundException("Wishlist item not found")
     await db.delete(item)
     await db.commit()
-    wishlist = await get_or_create_wishlist(current_user, db)
+    wishlist = await get_or_create_wishlist(current_user.id, db)
     return build_wishlist_response(wishlist)

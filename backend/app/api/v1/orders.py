@@ -198,14 +198,23 @@ async def create_order(
     )
     db.add(order)
     await db.flush()
+    order_id = order.id
 
     for item in order_items:
-        item.order_id = order.id
+        item.order_id = order_id
         db.add(item)
 
     for cart_item in cart.items:
         await db.delete(cart_item)
 
     await db.commit()
-    await db.refresh(order)
+    result = await db.execute(
+        select(Order)
+        .where(Order.id == order_id)
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.subvariant),
+            selectinload(Order.address),
+        )
+    )
+    order = result.scalar_one()
     return order

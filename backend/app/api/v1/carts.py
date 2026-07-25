@@ -41,10 +41,10 @@ def build_cart_response(cart: Cart) -> CartResponse:
     return CartResponse(id=cart.id, items=items, total=total)
 
 
-async def get_or_create_cart(user: User, db: AsyncSession) -> Cart:
+async def get_or_create_cart(user_id: int, db: AsyncSession) -> Cart:
     result = await db.execute(
         select(Cart)
-        .where(Cart.user_id == user.id)
+        .where(Cart.user_id == user_id)
         .options(
             selectinload(Cart.items)
             .selectinload(CartItem.subvariant)
@@ -53,10 +53,21 @@ async def get_or_create_cart(user: User, db: AsyncSession) -> Cart:
     )
     cart = result.scalar_one_or_none()
     if not cart:
-        cart = Cart(user_id=user.id)
+        cart = Cart(user_id=user_id)
         db.add(cart)
+        await db.flush()
+        cart_id = cart.id
         await db.commit()
-        await db.refresh(cart)
+        result = await db.execute(
+            select(Cart)
+            .where(Cart.id == cart_id)
+            .options(
+                selectinload(Cart.items)
+                .selectinload(CartItem.subvariant)
+                .selectinload(ProductSubVariant.variant),
+            )
+        )
+        cart = result.scalar_one()
     return cart
 
 
@@ -65,7 +76,7 @@ async def get_cart(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     return build_cart_response(cart)
 
 
@@ -75,7 +86,7 @@ async def add_to_cart(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
 
     result = await db.execute(
         select(ProductSubVariant).where(ProductSubVariant.id == data.subvariant_id)
@@ -96,7 +107,7 @@ async def add_to_cart(
         db.add(item)
 
     await db.commit()
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     return build_cart_response(cart)
 
 
@@ -107,7 +118,7 @@ async def update_cart_item(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     result = await db.execute(
         select(CartItem).where(CartItem.id == item_id, CartItem.cart_id == cart.id)
     )
@@ -120,7 +131,7 @@ async def update_cart_item(
     else:
         item.quantity = data.quantity
     await db.commit()
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     return build_cart_response(cart)
 
 
@@ -130,7 +141,7 @@ async def remove_from_cart(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     result = await db.execute(
         select(CartItem).where(CartItem.id == item_id, CartItem.cart_id == cart.id)
     )
@@ -139,7 +150,7 @@ async def remove_from_cart(
         raise NotFoundException("Cart item not found")
     await db.delete(item)
     await db.commit()
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     return build_cart_response(cart)
 
 
@@ -148,9 +159,9 @@ async def clear_cart(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     for item in cart.items:
         await db.delete(item)
     await db.commit()
-    cart = await get_or_create_cart(current_user, db)
+    cart = await get_or_create_cart(current_user.id, db)
     return build_cart_response(cart)

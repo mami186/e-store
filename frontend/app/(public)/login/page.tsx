@@ -23,7 +23,9 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login({ email, password })
-      router.push("/")
+      const params = new URLSearchParams(window.location.search)
+      const redirect = params.get("redirect")
+      router.push(redirect || "/")
     } catch {
       setError("Invalid email or password")
     } finally {

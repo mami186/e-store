@@ -358,6 +358,7 @@ async def admin_restrict_user(
     )
     db.add(restriction)
     await db.flush()
+    restriction_id = restriction.id
 
     for sv_id in data.subvariant_ids:
         sv_result = await db.execute(
@@ -395,8 +396,8 @@ async def admin_restrict_user(
 
     result = await db.execute(
         select(Restriction)
-        .where(Restriction.id == restriction.id)
-        .options(selectinload(Restriction.products))
+        .where(Restriction.id == restriction_id)
+        .options(selectinload(Restriction.products), selectinload(Restriction.reason))
     )
     restriction = result.scalar_one_or_none()
     return restriction

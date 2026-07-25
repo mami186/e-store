@@ -98,7 +98,6 @@ async def create_comment(
     db.add(comment)
     await db.flush()
     comment_id = comment.id
-    await db.commit()
 
     rating_result = await db.execute(
         select(ProductRating.rating).where(
@@ -115,7 +114,10 @@ async def create_comment(
     )
     result = await db.execute(query)
     comment = result.scalar_one()
-    return _format_comment(comment, user_rating=user_rating)
+
+    formatted = _format_comment(comment, user_rating=user_rating)
+    await db.commit()
+    return formatted
 
 
 async def _batch_reply_counts(
