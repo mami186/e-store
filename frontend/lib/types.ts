@@ -459,6 +459,41 @@ export interface RestrictionResponse {
   lifted_at: string | null
 }
 
+// ─── Featured ───
+export interface FeaturedVariantInfo {
+  id: number
+  name: string
+  price: number
+  image: string | null
+  product_id: number
+  product_name: string
+}
+
+export interface FeaturedItemResponse {
+  id: number
+  position: number
+  start_date: string
+  end_date: string
+  is_active: boolean
+  product: ProductListItem | null
+  variant: FeaturedVariantInfo | null
+  created_at: string
+}
+
+export interface FeaturedItemCreate {
+  product_id?: number
+  variant_id?: number
+  position?: number
+  start_date: string
+  end_date: string
+}
+
+export interface FeaturedItemUpdate {
+  position?: number
+  start_date?: string
+  end_date?: string
+}
+
 // ─── Pagination ───
 export interface PaginationParams {
   skip?: number
