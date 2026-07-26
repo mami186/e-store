@@ -79,7 +79,7 @@ async def list_products(
     q: str | None = None,
     min_price: float | None = None,
     max_price: float | None = None,
-    sort_by: str = Query("created_at", pattern=r"^(created_at|name|rating)$"),
+    sort_by: str = Query("created_at", pattern=r"^(created_at|name|rating|price)$"),
     order: str = Query("desc", pattern=r"^(asc|desc)$"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -128,15 +128,34 @@ async def list_products(
         .subquery()
     )
 
+    price_subq = (
+        select(
+            ProductVariant.product_id,
+            func.min(func.coalesce(ProductSubVariant.price, ProductVariant.price)).label(
+                "min_price"
+            ),
+        )
+        .join(ProductSubVariant, ProductSubVariant.variant_id == ProductVariant.id)
+        .where(
+            ProductSubVariant.is_active == True,
+            ProductVariant.is_active == True,
+        )
+        .group_by(ProductVariant.product_id)
+        .subquery()
+    )
+
     query = (
         select(Product, rating_subq.c.avg_rating, rating_subq.c.rating_count)
         .options(selectinload(Product.category))
         .outerjoin(rating_subq, rating_subq.c.product_id == Product.id)
+        .outerjoin(price_subq, price_subq.c.product_id == Product.id)
         .where(*conditions)
     )
 
     if sort_by == "rating":
         sort_col = rating_subq.c.avg_rating
+    elif sort_by == "price":
+        sort_col = price_subq.c.min_price
     else:
         sort_col = {"created_at": Product.created_at, "name": Product.name}[sort_by]
     query = query.order_by(sort_col.desc() if order == "desc" else sort_col.asc())
