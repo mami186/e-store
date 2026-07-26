@@ -11,6 +11,7 @@ from app.api.v1 import (
     carts,
     categories,
     comments,
+    featured,
     images,
     orders,
     products,
@@ -81,6 +82,7 @@ app.include_router(categories.router, prefix="/api/v1")
 app.include_router(products.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(carts.router, prefix="/api/v1")
+app.include_router(featured.router, prefix="/api/v1")
 app.include_router(images.router, prefix="/api/v1")
 app.include_router(wishlists.router, prefix="/api/v1")
 app.include_router(orders.router, prefix="/api/v1")

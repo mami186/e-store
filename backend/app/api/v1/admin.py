@@ -9,10 +9,12 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
-from app.models.product import Product, ProductComment, ProductImage, ProductSubVariant
+from app.models.featured import FeaturedItem
+from app.models.product import Product, ProductComment, ProductImage, ProductSubVariant, ProductVariant
 from app.models.report import Report
 from app.models.restriction import Appeal, Restriction, RestrictionProduct, RestrictionReason
 from app.models.order import Order, OrderItem
+from app.schemas.featured import FeaturedItemCreate, FeaturedItemResponse, FeaturedItemUpdate, FeaturedVariantInfo
 from app.schemas.product import ReportResponse
 from app.schemas.restriction import (
     AppealResponse,
@@ -512,3 +514,273 @@ async def admin_restore_image(
     await db.commit()
     await db.refresh(image)
     return image
+
+
+# ─── Featured Items ────────────────────────────────────────────────────
+
+
+@router.get("/featured", response_model=list[FeaturedItemResponse])
+async def admin_list_featured(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    result = await db.execute(
+        select(FeaturedItem)
+        .order_by(FeaturedItem.position)
+        .options(
+            selectinload(FeaturedItem.product).selectinload(Product.category),
+            selectinload(FeaturedItem.variant).selectinload(ProductVariant.images),
+            selectinload(FeaturedItem.variant).selectinload(ProductVariant.product),
+        )
+    )
+    items = result.scalars().all()
+
+    response = []
+    for item in items:
+        if item.product_id and item.product:
+            product = item.product
+            product_data = ProductListItem(
+                id=product.id,
+                name=product.name,
+                category=product.category,
+                status=product.status,
+                is_active=product.is_active,
+                main_image=product.main_image,
+                min_price=product.min_price,
+                max_price=product.max_price,
+                avg_rating=None,
+                rating_count=0,
+                created_at=product.created_at,
+            )
+            response.append(
+                FeaturedItemResponse(
+                    id=item.id,
+                    position=item.position,
+                    start_date=item.start_date,
+                    end_date=item.end_date,
+                    is_active=item.is_active,
+                    product=product_data,
+                    variant=None,
+                    created_at=item.created_at,
+                )
+            )
+        elif item.variant_id and item.variant:
+            variant = item.variant
+            variant_data = FeaturedVariantInfo(
+                id=variant.id,
+                name=variant.variant_name,
+                price=variant.price,
+                image=variant.main_image,
+                product_id=variant.product_id,
+                product_name=variant.product.name if variant.product else "",
+            )
+            response.append(
+                FeaturedItemResponse(
+                    id=item.id,
+                    position=item.position,
+                    start_date=item.start_date,
+                    end_date=item.end_date,
+                    is_active=item.is_active,
+                    product=None,
+                    variant=variant_data,
+                    created_at=item.created_at,
+                )
+            )
+
+    return response
+
+
+@router.post("/featured", response_model=FeaturedItemResponse, status_code=201)
+async def admin_create_featured(
+    data: FeaturedItemCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    if data.product_id:
+        result = await db.execute(select(Product).where(Product.id == data.product_id))
+        if not result.scalar_one_or_none():
+            raise NotFoundException("Product not found")
+
+    if data.variant_id:
+        result = await db.execute(select(ProductVariant).where(ProductVariant.id == data.variant_id))
+        if not result.scalar_one_or_none():
+            raise NotFoundException("Variant not found")
+
+    if data.position is None:
+        pos_result = await db.execute(select(FeaturedItem.position).order_by(FeaturedItem.position.desc()).limit(1))
+        max_pos = pos_result.scalar_one_or_none() or 0
+        position = max_pos + 1
+    else:
+        position = data.position
+
+    featured = FeaturedItem(
+        product_id=data.product_id,
+        variant_id=data.variant_id,
+        position=position,
+        start_date=data.start_date,
+        end_date=data.end_date,
+    )
+    db.add(featured)
+    await db.commit()
+    await db.refresh(featured)
+
+    result = await db.execute(
+        select(FeaturedItem)
+        .where(FeaturedItem.id == featured.id)
+        .options(
+            selectinload(FeaturedItem.product).selectinload(Product.category),
+            selectinload(FeaturedItem.variant).selectinload(ProductVariant.images),
+            selectinload(FeaturedItem.variant).selectinload(ProductVariant.product),
+        )
+    )
+    featured = result.scalar_one_or_none()
+
+    if featured.product_id and featured.product:
+        product = featured.product
+        product_data = ProductListItem(
+            id=product.id,
+            name=product.name,
+            category=product.category,
+            status=product.status,
+            is_active=product.is_active,
+            main_image=product.main_image,
+            min_price=product.min_price,
+            max_price=product.max_price,
+            avg_rating=None,
+            rating_count=0,
+            created_at=product.created_at,
+        )
+        return FeaturedItemResponse(
+            id=featured.id,
+            position=featured.position,
+            start_date=featured.start_date,
+            end_date=featured.end_date,
+            is_active=featured.is_active,
+            product=product_data,
+            variant=None,
+            created_at=featured.created_at,
+        )
+    elif featured.variant_id and featured.variant:
+        variant = featured.variant
+        variant_data = FeaturedVariantInfo(
+            id=variant.id,
+            name=variant.variant_name,
+            price=variant.price,
+            image=variant.main_image,
+            product_id=variant.product_id,
+            product_name=variant.product.name if variant.product else "",
+        )
+        return FeaturedItemResponse(
+            id=featured.id,
+            position=featured.position,
+            start_date=featured.start_date,
+            end_date=featured.end_date,
+            is_active=featured.is_active,
+            product=None,
+            variant=variant_data,
+            created_at=featured.created_at,
+        )
+
+
+@router.put("/featured/{item_id}", response_model=FeaturedItemResponse)
+async def admin_update_featured(
+    item_id: int,
+    data: FeaturedItemUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    result = await db.execute(select(FeaturedItem).where(FeaturedItem.id == item_id))
+    featured = result.scalar_one_or_none()
+    if not featured:
+        raise NotFoundException("Featured item not found")
+
+    if data.position is not None:
+        featured.position = data.position
+    if data.start_date is not None:
+        featured.start_date = data.start_date
+    if data.end_date is not None:
+        featured.end_date = data.end_date
+
+    await db.commit()
+
+    result = await db.execute(
+        select(FeaturedItem)
+        .where(FeaturedItem.id == item_id)
+        .options(
+            selectinload(FeaturedItem.product).selectinload(Product.category),
+            selectinload(FeaturedItem.variant).selectinload(ProductVariant.images),
+            selectinload(FeaturedItem.variant).selectinload(ProductVariant.product),
+        )
+    )
+    featured = result.scalar_one_or_none()
+
+    if featured.product_id and featured.product:
+        product = featured.product
+        product_data = ProductListItem(
+            id=product.id,
+            name=product.name,
+            category=product.category,
+            status=product.status,
+            is_active=product.is_active,
+            main_image=product.main_image,
+            min_price=product.min_price,
+            max_price=product.max_price,
+            avg_rating=None,
+            rating_count=0,
+            created_at=product.created_at,
+        )
+        return FeaturedItemResponse(
+            id=featured.id,
+            position=featured.position,
+            start_date=featured.start_date,
+            end_date=featured.end_date,
+            is_active=featured.is_active,
+            product=product_data,
+            variant=None,
+            created_at=featured.created_at,
+        )
+    elif featured.variant_id and featured.variant:
+        variant = featured.variant
+        variant_data = FeaturedVariantInfo(
+            id=variant.id,
+            name=variant.variant_name,
+            price=variant.price,
+            image=variant.main_image,
+            product_id=variant.product_id,
+            product_name=variant.product.name if variant.product else "",
+        )
+        return FeaturedItemResponse(
+            id=featured.id,
+            position=featured.position,
+            start_date=featured.start_date,
+            end_date=featured.end_date,
+            is_active=featured.is_active,
+            product=None,
+            variant=variant_data,
+            created_at=featured.created_at,
+        )
+
+
+@router.delete("/featured/{item_id}", status_code=204)
+async def admin_delete_featured(
+    item_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    result = await db.execute(select(FeaturedItem).where(FeaturedItem.id == item_id))
+    featured = result.scalar_one_or_none()
+    if not featured:
+        raise NotFoundException("Featured item not found")
+    await db.delete(featured)
+    await db.commit()
+
+
+@router.post("/featured/refresh")
+async def admin_refresh_featured(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+):
+    from app.services.featured_scheduler import refresh_featured_items
+
+    await refresh_featured_items()
+    return {"message": "Featured items refreshed"}
