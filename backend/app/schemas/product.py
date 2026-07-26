@@ -92,6 +92,8 @@ class ProductListItem(BaseModel):
     main_image: str | None
     min_price: float | None
     max_price: float | None
+    avg_rating: float | None = None
+    rating_count: int = 0
     created_at: datetime
 
     model_config = {"from_attributes": True}
