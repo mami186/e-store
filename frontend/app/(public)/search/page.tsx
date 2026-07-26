@@ -1,22 +1,15 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useState, useCallback } from "react"
 import { useProducts } from "@/hooks/use-products"
 import { useCategories } from "@/hooks/use-categories"
-import { ProductGrid } from "@/components/products/product-grid"
-import { Pagination } from "@/components/ui/pagination"
+import { useInView } from "@/hooks/use-in-view"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-
-const LIMIT = 20
+import { ProductSearchCard } from "@/components/search/product-search-card"
+import { SearchFilters } from "@/components/search/search-filters"
+import { SortButtons } from "@/components/search/sort-buttons"
+import { Skeleton } from "@/components/ui/skeleton"
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -24,24 +17,35 @@ function SearchContent() {
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "")
   const { data: categories } = useCategories()
 
-  const q = searchParams.get("q") || ""
-  const categoryId = searchParams.get("category_id") || ""
-  const sortBy = (searchParams.get("sort_by") || "created_at") as "created_at" | "name"
-  const order = (searchParams.get("order") || "desc") as "asc" | "desc"
-  const page = parseInt(searchParams.get("page") || "1", 10)
+  const q = searchParams.get("q") || undefined
+  const categoryIdParam = searchParams.get("category_id")
+  const categoryId = categoryIdParam ? Number(categoryIdParam) : null
+  const sortBy = (searchParams.get("sort_by") || undefined) as "created_at" | "name" | "rating" | undefined
+  const order = (searchParams.get("order") || undefined) as "asc" | "desc" | undefined
+  const minPriceParam = searchParams.get("min_price")
+  const minPrice = minPriceParam ? Number(minPriceParam) : undefined
+  const maxPriceParam = searchParams.get("max_price")
+  const maxPrice = maxPriceParam ? Number(maxPriceParam) : undefined
 
-  const skip = (page - 1) * LIMIT
-
-  const categoryFilter = categoryId ? parseInt(categoryId) : undefined
-
-  const { data: products, isLoading } = useProducts({
-    category_id: categoryFilter, q, sort_by: sortBy, order, skip, limit: LIMIT,
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useProducts({
+    q,
+    category_id: categoryId ?? undefined,
+    sort_by: sortBy,
+    order,
+    min_price: minPrice,
+    max_price: maxPrice,
   })
 
-  const selectedCategory = categories?.find((c) => c.id === categoryFilter)
+  const products = data?.pages.flat() ?? []
 
   const updateParams = useCallback(
-    (updates: Record<string, string>) => {
+    (updates: Record<string, string | undefined>) => {
       const params = new URLSearchParams(searchParams.toString())
       Object.entries(updates).forEach(([key, value]) => {
         if (value) params.set(key, value)
@@ -54,76 +58,142 @@ function SearchContent() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    updateParams({ q: searchInput, page: "1" })
+    updateParams({ q: searchInput || undefined })
   }
 
+  const handleCategoryChange = (id: number | null) => {
+    updateParams({ category_id: id ? String(id) : undefined })
+  }
+
+  const handleSort = (key: string, dir: "all" | "asc" | "desc") => {
+    if (dir === "all") {
+      updateParams({ sort_by: undefined, order: undefined })
+    } else {
+      updateParams({ sort_by: key, order: dir })
+    }
+  }
+
+  const handlePriceRelease = useCallback(
+    (range: [number, number]) => {
+      const [lo, hi] = range
+      updateParams({
+        min_price: lo > 0 ? String(lo) : undefined,
+        max_price: hi < 10000 ? String(hi) : undefined,
+      })
+    },
+    [updateParams],
+  )
+
+  const { ref: sentinelRef, inView: sentinelInView } = useInView(0.1)
+
+  useEffect(() => {
+    if (sentinelInView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage()
+    }
+  }, [sentinelInView, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  const activeSort = sortBy || null
+  const activeOrder = order
+    ? (order as "asc" | "desc")
+    : "all"
+
   return (
-    <>
-      <div className="mb-6">
-        <form onSubmit={handleSearch} className="mb-4">
-          <Input
-            placeholder="Search products..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="max-w-md"
+    <div className="mx-auto max-w-7xl px-4 py-8">
+      <form onSubmit={handleSearch} className="mb-6">
+        <Input
+          placeholder="Search products..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="max-w-md"
+        />
+      </form>
+
+      <div className="flex gap-8">
+        <aside className="hidden w-56 shrink-0 md:block">
+          <SearchFilters
+            categories={categories ?? []}
+            selectedCategory={categoryId}
+            onCategoryChange={handleCategoryChange}
+            priceRange={[minPrice ?? 0, maxPrice ?? 10000]}
+            onPriceRelease={handlePriceRelease}
           />
-        </form>
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            {q ? `Results for "${q}"` : selectedCategory ? `Category: ${selectedCategory.name}` : "All products"}
-          </p>
-          <div className="flex items-center gap-2">
-            <select
-              value={categoryId}
-              onChange={(e) =>
-                updateParams({ category_id: e.target.value, page: "1" })
-              }
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-            >
-              <option value="">All Categories</option>
-              {categories?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <Select
-              value={`${sortBy}-${order}`}
-              onValueChange={(val) => {
-                if (val) {
-                  const [s, o] = val.split("-")
-                  updateParams({ sort_by: s, order: o, page: "1" })
-                }
-              }}
-            >
-              <SelectTrigger className="w-40 h-8 text-xs">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at-desc">Newest</SelectItem>
-                <SelectItem value="name-asc">Name: A–Z</SelectItem>
-                <SelectItem value="name-desc">Name: Z–A</SelectItem>
-              </SelectContent>
-            </Select>
+        </aside>
+
+        <div className="flex-1 space-y-4">
+          <SortButtons
+            options={[
+              { key: "price", label: "Price" },
+              { key: "name", label: "Name" },
+              { key: "rating", label: "Rating" },
+            ]}
+            active={activeSort}
+            direction={activeOrder}
+            onSort={handleSort}
+          />
+
+          <div className="space-y-3">
+            {isLoading
+              ? Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex gap-4 rounded-lg border p-4">
+                    <Skeleton className="size-20 shrink-0 rounded-md sm:size-24" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/3" />
+                      <Skeleton className="h-4 w-1/4" />
+                    </div>
+                  </div>
+                ))
+              : products.map((product) => (
+                  <ProductSearchCard key={product.id} product={product} />
+                ))}
+            {!isLoading && products.length === 0 && (
+              <p className="py-16 text-center text-muted-foreground">No products found</p>
+            )}
           </div>
+
+          {hasNextPage && (
+            <div
+              ref={sentinelRef}
+              className="flex justify-center py-4"
+            >
+              {isFetchingNextPage && (
+                <div className="flex gap-4">
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
-
-      <ProductGrid products={products ?? []} isLoading={isLoading} />
-
-      <div className="mt-8">
-        <Pagination page={page} totalPages={10} onPageChange={(p) => updateParams({ page: String(p) })} />
-      </div>
-    </>
+    </div>
   )
 }
 
 export default function SearchPage() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <Suspense fallback={<ProductGrid products={[]} isLoading />}>
-        <SearchContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={
+      <div className="mx-auto max-w-7xl px-4 py-8 space-y-4">
+        <Skeleton className="h-8 max-w-md" />
+        <div className="flex gap-8">
+          <div className="hidden w-56 space-y-4 md:block">
+            <Skeleton className="h-40 w-full" />
+          </div>
+          <div className="flex-1 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex gap-4 rounded-lg border p-4">
+                <Skeleton className="size-20 shrink-0 rounded-md sm:size-24" />
+                <div className="flex flex-1 flex-col gap-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   )
 }
