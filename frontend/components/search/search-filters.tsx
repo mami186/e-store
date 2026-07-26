@@ -21,10 +21,22 @@ export function SearchFilters({
   priceRange,
   onPriceRelease,
 }: SearchFiltersProps) {
-  const [categoryOpen, setCategoryOpen] = useState(true)
+  const [categoryOpen, setCategoryOpen] = useState(false)
 
   return (
     <div className="space-y-6">
+      <div>
+        <p className="mb-2 text-sm font-medium">Price Range</p>
+        <RangeSlider
+          min={0}
+          max={10000}
+          step={10}
+          value={priceRange}
+          onRelease={onPriceRelease}
+          formatLabel={(v) => `$${v}`}
+        />
+      </div>
+
       <div>
         <button
           onClick={() => setCategoryOpen(!categoryOpen)}
@@ -67,18 +79,6 @@ export function SearchFilters({
             ))}
           </div>
         )}
-      </div>
-
-      <div>
-        <p className="mb-2 text-sm font-medium">Price Range</p>
-        <RangeSlider
-          min={0}
-          max={10000}
-          step={10}
-          value={priceRange}
-          onRelease={onPriceRelease}
-          formatLabel={(v) => `$${v}`}
-        />
       </div>
     </div>
   )

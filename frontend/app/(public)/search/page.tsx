@@ -1,11 +1,10 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useProducts } from "@/hooks/use-products"
 import { useCategories } from "@/hooks/use-categories"
 import { useInView } from "@/hooks/use-in-view"
-import { Input } from "@/components/ui/input"
 import { ProductSearchCard } from "@/components/search/product-search-card"
 import { SearchFilters } from "@/components/search/search-filters"
 import { SortButtons } from "@/components/search/sort-buttons"
@@ -14,7 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 function SearchContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [searchInput, setSearchInput] = useState(searchParams.get("q") || "")
   const { data: categories } = useCategories()
 
   const q = searchParams.get("q") || undefined
@@ -56,11 +54,6 @@ function SearchContent() {
     [searchParams, router],
   )
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    updateParams({ q: searchInput || undefined })
-  }
-
   const handleCategoryChange = (id: number | null) => {
     updateParams({ category_id: id ? String(id) : undefined })
   }
@@ -99,14 +92,11 @@ function SearchContent() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <form onSubmit={handleSearch} className="mb-6">
-        <Input
-          placeholder="Search products..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-md"
-        />
-      </form>
+      {q ? (
+        <div className="mb-6 text-sm text-muted-foreground">
+          Results for <span className="font-medium text-foreground">{q}</span>
+        </div>
+      ) : null}
 
       <div className="flex gap-8">
         <aside className="hidden w-56 shrink-0 md:block">
