@@ -55,6 +55,7 @@ class Product(Base):
     comments: Mapped[list["ProductComment"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
+    featured_items: Mapped[list["FeaturedItem"]] = relationship(back_populates="product")
 
     @property
     def main_image(self) -> str | None:
@@ -117,6 +118,12 @@ class ProductVariant(Base):
     subvariants: Mapped[list["ProductSubVariant"]] = relationship(
         back_populates="variant", cascade="all, delete-orphan", lazy="selectin"
     )
+    featured_items: Mapped[list["FeaturedItem"]] = relationship(back_populates="variant")
+
+    @property
+    def main_image(self) -> str | None:
+        main = [img for img in self.images if img.is_main]
+        return main[0].url if main else (self.images[0].url if self.images else None)
 
     @property
     def discount_percent(self) -> float | None:
