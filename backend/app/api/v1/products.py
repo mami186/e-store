@@ -101,14 +101,21 @@ async def list_products(
             or_(Product.name.ilike(f"%{q}%"), Product.short_description.ilike(f"%{q}%"))
         )
 
-    sv_exists = select(ProductSubVariant.id).where(
-        ProductSubVariant.product_id == Product.id,
-        ProductSubVariant.is_active == True,
-    ).correlate(Product)
+    sv_exists = (
+        select(ProductSubVariant.id)
+        .join(ProductVariant, ProductVariant.id == ProductSubVariant.variant_id)
+        .where(
+            ProductVariant.product_id == Product.id,
+            ProductSubVariant.is_active == True,
+            ProductVariant.is_active == True,
+        )
+        .correlate(Product)
+    )
+    effective_price = func.coalesce(ProductSubVariant.price, ProductVariant.price)
     if min_price is not None:
-        sv_exists = sv_exists.where(ProductSubVariant.effective_price >= min_price)
+        sv_exists = sv_exists.where(effective_price >= min_price)
     if max_price is not None:
-        sv_exists = sv_exists.where(ProductSubVariant.effective_price <= max_price)
+        sv_exists = sv_exists.where(effective_price <= max_price)
     conditions.append(sv_exists.exists())
 
     rating_subq = (
