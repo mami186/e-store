@@ -159,6 +159,8 @@ export interface ProductListItem {
   main_image: string | null
   min_price: number | null
   max_price: number | null
+  avg_rating: number | null
+  rating_count: number
   created_at: string
 }
 
@@ -467,6 +469,8 @@ export interface ProductFilters extends PaginationParams {
   category_id?: number
   seller_id?: number
   q?: string
-  sort_by?: "created_at" | "name"
+  min_price?: number
+  max_price?: number
+  sort_by?: "created_at" | "name" | "rating"
   order?: "asc" | "desc"
 }
