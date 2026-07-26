@@ -48,8 +48,15 @@ async def lifespan(app: FastAPI):
                 session.add(Role(**role_data))
         await session.commit()
 
+    from app.services.featured_scheduler import featured_scheduler_loop, refresh_featured_items
+
+    await refresh_featured_items()
+
+    task = asyncio.create_task(featured_scheduler_loop())
+
     yield
 
+    task.cancel()
     from app.storage.s3 import storage
 
     await storage.close()
