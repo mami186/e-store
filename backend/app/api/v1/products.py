@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.core.history import record_history
 from app.models.product import Product, ProductImage, ProductSubVariant, ProductVariant
+from app.models.rating import ProductRating
 from app.models.report import Report
 from app.models.restriction import Restriction
 from app.models.user import Seller, User
@@ -76,43 +77,82 @@ async def list_products(
     category_id: int | None = None,
     seller_id: int | None = None,
     q: str | None = None,
-    sort_by: str = Query("created_at", pattern=r"^(created_at|name)$"),
+    min_price: float | None = None,
+    max_price: float | None = None,
+    sort_by: str = Query("created_at", pattern=r"^(created_at|name|rating)$"),
     order: str = Query("desc", pattern=r"^(asc|desc)$"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    query = (
-        select(Product)
-        .options(selectinload(Product.category))
-        .where(
-            Product.is_active == True,
-            Product.status == "published",
-            ~select(Restriction.id)
-            .where(
-                Restriction.user_id == Product.seller_id,
-                Restriction.status == "active",
-            )
-            .exists(),
-        )
-    )
-
+    conditions = [
+        Product.is_active == True,
+        Product.status == "published",
+        ~select(Restriction.id)
+        .where(Restriction.user_id == Product.seller_id, Restriction.status == "active")
+        .exists(),
+    ]
     if category_id:
-        query = query.where(Product.category_id == category_id)
+        conditions.append(Product.category_id == category_id)
     if seller_id:
-        query = query.where(Product.seller_id == seller_id)
+        conditions.append(Product.seller_id == seller_id)
     if q:
-        query = query.where(
+        conditions.append(
             or_(Product.name.ilike(f"%{q}%"), Product.short_description.ilike(f"%{q}%"))
         )
 
-    sort_column = {"created_at": Product.created_at, "name": Product.name}[sort_by]
-    query = query.order_by(sort_column.desc() if order == "desc" else sort_column.asc())
+    sv_exists = select(ProductSubVariant.id).where(
+        ProductSubVariant.product_id == Product.id,
+        ProductSubVariant.is_active == True,
+    ).correlate(Product)
+    if min_price is not None:
+        sv_exists = sv_exists.where(ProductSubVariant.effective_price >= min_price)
+    if max_price is not None:
+        sv_exists = sv_exists.where(ProductSubVariant.effective_price <= max_price)
+    conditions.append(sv_exists.exists())
+
+    rating_subq = (
+        select(
+            ProductRating.product_id,
+            func.avg(ProductRating.rating).label("avg_rating"),
+            func.count(ProductRating.id).label("rating_count"),
+        )
+        .group_by(ProductRating.product_id)
+        .subquery()
+    )
+
+    query = (
+        select(Product, rating_subq.c.avg_rating, rating_subq.c.rating_count)
+        .options(selectinload(Product.category))
+        .outerjoin(rating_subq, rating_subq.c.product_id == Product.id)
+        .where(*conditions)
+    )
+
+    if sort_by == "rating":
+        sort_col = rating_subq.c.avg_rating
+    else:
+        sort_col = {"created_at": Product.created_at, "name": Product.name}[sort_by]
+    query = query.order_by(sort_col.desc() if order == "desc" else sort_col.asc())
 
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
-    products = result.scalars().all()
-    return products
+    rows = result.all()
+    return [
+        ProductListItem(
+            id=product.id,
+            name=product.name,
+            category=product.category,
+            status=product.status,
+            is_active=product.is_active,
+            main_image=product.main_image,
+            min_price=product.min_price,
+            max_price=product.max_price,
+            avg_rating=round(float(avg_rating), 1) if avg_rating else None,
+            rating_count=rating_count or 0,
+            created_at=product.created_at,
+        )
+        for product, avg_rating, rating_count in rows
+    ]
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
