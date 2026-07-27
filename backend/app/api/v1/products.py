@@ -166,6 +166,7 @@ async def list_products(
     return [
         ProductListItem(
             id=product.id,
+            seller_id=product.seller_id,
             name=product.name,
             category=product.category,
             status=product.status,

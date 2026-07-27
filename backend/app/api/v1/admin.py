@@ -544,6 +544,7 @@ async def admin_list_featured(
             product = item.product
             product_data = ProductListItem(
                 id=product.id,
+                seller_id=product.seller_id,
                 name=product.name,
                 category=product.category,
                 status=product.status,
@@ -642,6 +643,7 @@ async def admin_create_featured(
         product = featured.product
         product_data = ProductListItem(
             id=product.id,
+            seller_id=product.seller_id,
             name=product.name,
             category=product.category,
             status=product.status,
@@ -721,6 +723,7 @@ async def admin_update_featured(
         product = featured.product
         product_data = ProductListItem(
             id=product.id,
+            seller_id=product.seller_id,
             name=product.name,
             category=product.category,
             status=product.status,

@@ -36,6 +36,7 @@ async def get_featured_items(
             product = item.product
             product_data = ProductListItem(
                 id=product.id,
+                seller_id=product.seller_id,
                 name=product.name,
                 category=product.category,
                 status=product.status,
