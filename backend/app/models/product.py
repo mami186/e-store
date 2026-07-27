@@ -237,6 +237,24 @@ class ProductComment(Base):
     replies: Mapped[list["ProductComment"]] = relationship(
         back_populates="parent", cascade="all, delete-orphan", lazy="noload"
     )
+    images: Mapped[list["CommentImage"]] = relationship(
+        back_populates="comment", cascade="all, delete-orphan"
+    )
+
+
+class CommentImage(Base):
+    __tablename__ = "comment_images"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    comment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product_comments.id", ondelete="CASCADE"), nullable=False
+    )
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    comment: Mapped["ProductComment"] = relationship(back_populates="images")
 
 
 class ProductHistory(Base):

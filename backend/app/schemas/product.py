@@ -168,10 +168,18 @@ class ReportResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CommentImageResponse(BaseModel):
+    id: int
+    url: str
+
+    model_config = {"from_attributes": True}
+
+
 class CommentCreate(BaseModel):
     content: str
     parent_comment_id: int | None = None
     image_url: str | None = None
+    image_urls: list[str] = []
 
 
 class CommentResponse(BaseModel):
@@ -189,6 +197,7 @@ class CommentResponse(BaseModel):
     reply_count: int
     created_at: datetime
     replies: list[CommentResponse] = []
+    images: list[CommentImageResponse] = []
 
     model_config = {"from_attributes": True}
 

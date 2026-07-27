@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
-from app.models.product import Product, ProductComment
+from app.models.product import CommentImage, Product, ProductComment
 from app.models.rating import CommentReport, ProductRating
 from app.models.user import User
 from app.schemas.product import (
@@ -56,6 +56,7 @@ def _format_comment(
         "reply_count": reply_count,
         "created_at": comment.created_at.isoformat() if comment.created_at else None,
         "replies": [],
+        "images": [{"id": img.id, "url": img.url} for img in (comment.images or [])],
     }
 
 
@@ -92,12 +93,15 @@ async def create_comment(
         parent_comment_id=data.parent_comment_id,
         depth=depth,
         content=data.content,
-        image_url=data.image_url,
+        image_url=data.image_url or (data.image_urls[0] if data.image_urls else None),
         status="approved",
     )
     db.add(comment)
     await db.flush()
     comment_id = comment.id
+
+    for url in data.image_urls:
+        db.add(CommentImage(comment_id=comment_id, url=url))
 
     rating_result = await db.execute(
         select(ProductRating.rating).where(
@@ -110,7 +114,10 @@ async def create_comment(
     query = (
         select(ProductComment)
         .where(ProductComment.id == comment_id)
-        .options(selectinload(ProductComment.user))
+        .options(
+            selectinload(ProductComment.user),
+            selectinload(ProductComment.images),
+        )
     )
     result = await db.execute(query)
     comment = result.scalar_one()
@@ -157,7 +164,10 @@ async def list_comments(
             ProductComment.parent_comment_id == None,
             ProductComment.status == "approved",
         )
-        .options(selectinload(ProductComment.user))
+        .options(
+            selectinload(ProductComment.user),
+            selectinload(ProductComment.images),
+        )
         .order_by(ProductComment.created_at.desc())
     )
 
@@ -223,7 +233,10 @@ async def list_comment_replies(
             ProductComment.parent_comment_id == comment_id,
             ProductComment.status == "approved",
         )
-        .options(selectinload(ProductComment.user))
+        .options(
+            selectinload(ProductComment.user),
+            selectinload(ProductComment.images),
+        )
         .order_by(ProductComment.created_at.asc())
     )
 
