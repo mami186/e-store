@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Star } from "lucide-react"
+import { ImageOff, ImagePlus, Star, X } from "lucide-react"
 import type { CommentResponse } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/lib/auth-store"
-import { useComments, useCreateComment } from "@/hooks/use-comments"
+import { useComments, useCreateComment, useUploadCommentImage } from "@/hooks/use-comments"
 import { useUpsertRating, useRatingStats, useUserRating } from "@/hooks/use-ratings"
 import { RatingBreakdown } from "@/components/products/rating-breakdown"
 import { CommentCard } from "@/components/products/comment-card"
@@ -66,10 +66,16 @@ function UserRatingWidget({ productId }: { productId: number }) {
 export function ReviewSection({ productId }: ReviewSectionProps) {
   const { isAuthenticated } = useAuthStore()
   const createComment = useCreateComment(productId)
+  const uploadImage = useUploadCommentImage(productId)
 
   const [selectedRating, setSelectedRating] = useState<number | null>(null)
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useComments(productId, selectedRating)
   const [content, setContent] = useState("")
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const comments = data?.pages.flatMap((p) => p) ?? []
 
@@ -86,11 +92,40 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
     [isFetchingNextPage, hasNextPage, fetchNextPage],
   )
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setUploadedUrl(null)
+  }
+
+  const handleRemoveImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    setUploadedUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim()) return
-    await createComment.mutateAsync({ content: content.trim() })
+
+    let url = uploadedUrl
+    if (imageFile && !url) {
+      setUploading(true)
+      try {
+        const result = await uploadImage.mutateAsync(imageFile)
+        url = result.url
+        setUploadedUrl(url)
+      } finally {
+        setUploading(false)
+      }
+    }
+
+    await createComment.mutateAsync({ content: content.trim(), image_url: url ?? undefined })
     setContent("")
+    handleRemoveImage()
   }
 
   return (
@@ -114,13 +149,50 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
               onChange={(e) => setContent(e.target.value)}
               rows={3}
             />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!content.trim() || createComment.isPending}
-            >
-              {createComment.isPending ? "Posting..." : "Post Review"}
-            </Button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+
+            {imagePreview ? (
+              <div className="relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="h-24 w-24 rounded-lg object-cover border"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-background border shadow-sm hover:bg-muted transition-colors"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ImagePlus className="size-4" />
+                Add image
+              </button>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!content.trim() || createComment.isPending || uploading}
+              >
+                {uploading ? "Uploading..." : createComment.isPending ? "Posting..." : "Post Review"}
+              </Button>
+            </div>
           </form>
         )}
       </div>

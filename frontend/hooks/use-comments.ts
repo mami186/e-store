@@ -61,6 +61,21 @@ export function useCommentReplies(productId: number, commentId: number) {
   })
 }
 
+export function useUploadCommentImage(productId: number) {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await apiClient.post<{ key: string; url: string }>(
+        `/products/${productId}/comments/upload-image`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      )
+      return res.data
+    },
+  })
+}
+
 export function useReportComment(productId: number) {
   return useMutation({
     mutationFn: async ({ commentId, data }: { commentId: number; data: CommentReportCreate }) => {
