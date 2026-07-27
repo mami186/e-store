@@ -235,12 +235,19 @@ export interface CommentResponse {
   reply_count: number
   created_at: string
   replies: CommentResponse[]
+  images: CommentImageResponse[]
+}
+
+export interface CommentImageResponse {
+  id: number
+  url: string
 }
 
 export interface CommentCreate {
   content: string
   parent_comment_id?: number
   image_url?: string
+  image_urls?: string[]
 }
 
 export interface CommentReportCreate {

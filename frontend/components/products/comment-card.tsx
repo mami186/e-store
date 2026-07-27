@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useRef, useCallback } from "react"
-import { ChevronDown, ChevronRight, Flag, MessageCircle, Star, User } from "lucide-react"
+import { ChevronDown, ChevronRight, Flag, ImagePlus, MessageCircle, Star, User, X } from "lucide-react"
 import type { CommentResponse } from "@/lib/types"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/lib/auth-store"
-import { useCreateComment, useCommentReplies } from "@/hooks/use-comments"
+import { useCreateComment, useCommentReplies, useUploadCommentImage } from "@/hooks/use-comments"
 import { ReportDialog } from "@/components/products/report-dialog"
 
 const MAX_DEPTH = 4
@@ -21,10 +21,15 @@ interface CommentCardProps {
 export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps) {
   const { isAuthenticated } = useAuthStore()
   const createComment = useCreateComment(productId)
+  const uploadImage = useUploadCommentImage(productId)
   const [showReply, setShowReply] = useState(false)
   const [showReplies, setShowReplies] = useState(false)
   const [replyContent, setReplyContent] = useState("")
   const [showReport, setShowReport] = useState(false)
+  const [replyFiles, setReplyFiles] = useState<File[]>([])
+  const [replyPreviews, setReplyPreviews] = useState<string[]>([])
+  const [replyUploading, setReplyUploading] = useState(false)
+  const replyFileRef = useRef<HTMLInputElement>(null)
 
   const {
     data: repliesData,
@@ -48,16 +53,51 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
     [isFetchingNextPage, hasNextPage, fetchNextPage],
   )
 
+  const handleReplyImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? [])
+    if (selected.length === 0) return
+    setReplyFiles((prev) => [...prev, ...selected])
+    setReplyPreviews((prev) => [...prev, ...selected.map((f) => URL.createObjectURL(f))])
+  }
+
+  const handleRemoveReplyImage = (index: number) => {
+    setReplyFiles((prev) => prev.filter((_, i) => i !== index))
+    setReplyPreviews((prev) => {
+      URL.revokeObjectURL(prev[index])
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!replyContent.trim()) return
+
+    let urls: string[] = []
+    if (replyFiles.length > 0) {
+      setReplyUploading(true)
+      try {
+        const results = await Promise.all(replyFiles.map((f) => uploadImage.mutateAsync(f)))
+        urls = results.map((r) => r.url)
+      } finally {
+        setReplyUploading(false)
+      }
+    }
+
     await createComment.mutateAsync({
       content: replyContent.trim(),
       parent_comment_id: comment.id,
+      image_urls: urls,
     })
     setReplyContent("")
+    setReplyFiles([])
+    setReplyPreviews([])
     setShowReply(false)
     setShowReplies(true)
+  }
+
+  const allImages = [...(comment.images ?? [])]
+  if (comment.image_url && !allImages.some((img) => img.url === comment.image_url)) {
+    allImages.unshift({ id: 0, url: comment.image_url })
   }
 
   return (
@@ -93,12 +133,17 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
           </div>
         </div>
 
-        {comment.image_url && (
-          <img
-            src={comment.image_url}
-            alt="Comment attachment"
-            className="mb-2 max-h-48 rounded object-cover"
-          />
+        {allImages.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {allImages.map((img) => (
+              <img
+                key={img.id}
+                src={img.url}
+                alt="Comment attachment"
+                className="h-24 w-24 rounded object-cover border"
+              />
+            ))}
+          </div>
         )}
 
         <p className="text-sm">{comment.content}</p>
@@ -149,9 +194,56 @@ export function CommentCard({ comment, productId, depth = 0 }: CommentCardProps)
               rows={2}
               className="text-sm"
             />
+
+            <input
+              ref={replyFileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleReplyImageSelect}
+            />
+
+            {replyPreviews.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {replyPreviews.map((preview, i) => (
+                  <div key={i} className="relative inline-block">
+                    <img
+                      src={preview}
+                      alt={`Reply image ${i + 1}`}
+                      className="h-16 w-16 rounded object-cover border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveReplyImage(i)}
+                      className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-background border shadow-sm hover:bg-muted"
+                    >
+                      <X className="size-2.5" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => replyFileRef.current?.click()}
+                  className="flex size-16 items-center justify-center rounded-lg border border-dashed text-muted-foreground hover:text-foreground hover:border-solid transition-colors"
+                >
+                  <ImagePlus className="size-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => replyFileRef.current?.click()}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ImagePlus className="size-3.5" />
+                Add images
+              </button>
+            )}
+
             <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={!replyContent.trim() || createComment.isPending}>
-                {createComment.isPending ? "Posting..." : "Post Reply"}
+              <Button type="submit" size="sm" disabled={!replyContent.trim() || replyUploading || createComment.isPending}>
+                {replyUploading ? "Uploading..." : createComment.isPending ? "Posting..." : "Post Reply"}
               </Button>
               <Button type="button" size="sm" variant="ghost" onClick={() => setShowReply(false)}>
                 Cancel

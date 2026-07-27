@@ -71,9 +71,9 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
   const [selectedRating, setSelectedRating] = useState<number | null>(null)
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useComments(productId, selectedRating)
   const [content, setContent] = useState("")
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -93,39 +93,48 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
   )
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
-    setUploadedUrl(null)
+    const selected = Array.from(e.target.files ?? [])
+    if (selected.length === 0) return
+    setFiles((prev) => [...prev, ...selected])
+    setPreviews((prev) => [...prev, ...selected.map((f) => URL.createObjectURL(f))])
+    setUploadedUrls((prev) => [...prev, ...selected.map(() => "")])
   }
 
-  const handleRemoveImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    setUploadedUrl(null)
-    if (fileInputRef.current) fileInputRef.current.value = ""
+  const handleRemoveImage = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviews((prev) => {
+      URL.revokeObjectURL(prev[index])
+      return prev.filter((_, i) => i !== index)
+    })
+    setUploadedUrls((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim()) return
 
-    let url = uploadedUrl
-    if (imageFile && !url) {
+    const urls: string[] = []
+    const toUpload = files.filter((_, i) => !uploadedUrls[i])
+
+    if (toUpload.length > 0) {
       setUploading(true)
       try {
-        const result = await uploadImage.mutateAsync(imageFile)
-        url = result.url
-        setUploadedUrl(url)
+        const results = await Promise.all(toUpload.map((f) => uploadImage.mutateAsync(f)))
+        urls.push(...results.map((r) => r.url))
       } finally {
         setUploading(false)
       }
     }
 
-    await createComment.mutateAsync({ content: content.trim(), image_url: url ?? undefined })
+    urls.push(...uploadedUrls.filter(Boolean))
+    const allUrls = [...new Set(urls)]
+
+    await createComment.mutateAsync({ content: content.trim(), image_urls: allUrls })
     setContent("")
-    handleRemoveImage()
+    setFiles([])
+    setPreviews([])
+    setUploadedUrls([])
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   return (
@@ -154,23 +163,35 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               className="hidden"
               onChange={handleImageSelect}
             />
 
-            {imagePreview ? (
-              <div className="relative inline-block">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="h-24 w-24 rounded-lg object-cover border"
-                />
+            {previews.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {previews.map((preview, i) => (
+                  <div key={i} className="relative inline-block">
+                    <img
+                      src={preview}
+                      alt={`Preview ${i + 1}`}
+                      className="h-20 w-20 rounded-lg object-cover border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(i)}
+                      className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-background border shadow-sm hover:bg-muted transition-colors"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
                 <button
                   type="button"
-                  onClick={handleRemoveImage}
-                  className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-background border shadow-sm hover:bg-muted transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex size-20 items-center justify-center rounded-lg border border-dashed text-muted-foreground hover:text-foreground hover:border-solid transition-colors"
                 >
-                  <X className="size-3" />
+                  <ImagePlus className="size-5" />
                 </button>
               </div>
             ) : (
@@ -180,7 +201,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ImagePlus className="size-4" />
-                Add image
+                Add images
               </button>
             )}
 
