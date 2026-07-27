@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/lib/auth-store"
 import { useComments, useCreateComment } from "@/hooks/use-comments"
-import { useUpsertRating, useRatingStats } from "@/hooks/use-ratings"
+import { useUpsertRating, useRatingStats, useUserRating } from "@/hooks/use-ratings"
 import { RatingBreakdown } from "@/components/products/rating-breakdown"
 import { CommentCard } from "@/components/products/comment-card"
 
@@ -19,6 +19,7 @@ function UserRatingWidget({ productId }: { productId: number }) {
   const { isAuthenticated } = useAuthStore()
   const upsertRating = useUpsertRating(productId)
   const { data: stats } = useRatingStats(productId)
+  const { data: userRating } = useUserRating(productId)
   const [hovered, setHovered] = useState(0)
   const [submitting, setSubmitting] = useState(false)
 
@@ -50,7 +51,7 @@ function UserRatingWidget({ productId }: { productId: number }) {
           >
             <Star
               className={`h-6 w-6 ${
-                star <= (hovered || (stats?.average ? Math.round(stats.average) : 0))
+                star <= (hovered || (userRating?.rating ?? 0))
                   ? "fill-current text-amber-500"
                   : "text-muted-foreground"
               }`}

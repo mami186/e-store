@@ -383,3 +383,18 @@ async def upsert_rating(
     await db.commit()
     await db.refresh(rating)
     return rating
+
+
+@router.get("/user-rating", response_model=RatingResponse | None)
+async def get_user_rating(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    result = await db.execute(
+        select(ProductRating).where(
+            ProductRating.user_id == current_user.id,
+            ProductRating.product_id == product_id,
+        )
+    )
+    return result.scalar_one_or_none()

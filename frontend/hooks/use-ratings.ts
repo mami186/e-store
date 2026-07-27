@@ -13,6 +13,17 @@ export function useRatingStats(productId: number) {
   })
 }
 
+export function useUserRating(productId: number) {
+  return useQuery<RatingResponse | null>({
+    queryKey: ["user-rating", productId],
+    queryFn: async () => {
+      const res = await apiClient.get<RatingResponse | null>(`/products/${productId}/comments/user-rating`)
+      return res.data
+    },
+    enabled: !!productId,
+  })
+}
+
 export function useUpsertRating(productId: number) {
   const qc = useQueryClient()
   return useMutation({
@@ -22,6 +33,7 @@ export function useUpsertRating(productId: number) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rating-stats", productId] })
+      qc.invalidateQueries({ queryKey: ["user-rating", productId] })
     },
   })
 }
