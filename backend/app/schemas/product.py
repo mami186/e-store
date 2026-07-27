@@ -85,6 +85,7 @@ class ProductResponse(BaseModel):
 
 class ProductListItem(BaseModel):
     id: int
+    seller_id: int
     name: str
     category: CategoryResponse | None
     status: str

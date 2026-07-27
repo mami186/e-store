@@ -2,6 +2,8 @@
 
 import { use, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Flag, Store } from "lucide-react"
 import { useProduct } from "@/hooks/use-products"
 
 import { useAddToCart } from "@/hooks/use-cart"
@@ -14,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ProductGallery } from "@/components/products/product-gallery"
 import { VariantSelector } from "@/components/products/variant-selector"
 import { ReviewSection } from "@/components/products/review-section"
+import { ProductReportDialog } from "@/components/products/product-report-dialog"
 import type { SubVariantResponse } from "@/lib/types"
 
 export default function ProductPage({
@@ -32,6 +35,7 @@ export default function ProductPage({
   const [selectedSubVariant, setSelectedSubVariant] = useState<SubVariantResponse | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [adding, setAdding] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   const price = selectedSubVariant?.effective_price ?? product?.min_price ?? 0
   const stock = selectedSubVariant?.stock ?? 0
@@ -88,11 +92,20 @@ export default function ProductPage({
         <div className="flex flex-col gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
-            {product.category && (
-              <Badge variant="secondary" className="mt-1">
-                {product.category.name}
-              </Badge>
-            )}
+            <div className="mt-1 flex items-center gap-2">
+              {product.category && (
+                <Badge variant="secondary">
+                  {product.category.name}
+                </Badge>
+              )}
+              <Link
+                href={`/sellers/${product.seller_id}`}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Store className="size-3" />
+                View Shop
+              </Link>
+            </div>
           </div>
 
           <p className="text-3xl font-bold">{formatCurrency(price)}</p>
@@ -150,6 +163,18 @@ export default function ProductPage({
               {adding ? "Adding..." : "Add to Cart"}
             </Button>
           </div>
+
+          {/* Report */}
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={() => setShowReport(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors self-start"
+            >
+              <Flag className="size-3" />
+              Report this product
+            </button>
+          )}
         </div>
       </div>
 
@@ -169,6 +194,14 @@ export default function ProductPage({
       {/* Reviews */}
       <Separator className="my-12" />
       <ReviewSection productId={productId} />
+
+      {showReport && (
+        <ProductReportDialog
+          productId={productId}
+          productName={product.name}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   )
 }

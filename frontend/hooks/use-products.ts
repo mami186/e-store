@@ -1,6 +1,6 @@
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useInfiniteQuery } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
-import type { ProductListItem, ProductResponse, ProductFilters } from "@/lib/types"
+import type { ProductListItem, ProductResponse, ProductFilters, ReportCreate, ReportResponse } from "@/lib/types"
 
 const DEFAULT_LIMIT = 10
 
@@ -43,5 +43,14 @@ export function useProduct(id: number) {
       return res.data
     },
     enabled: !!id,
+  })
+}
+
+export function useReportProduct() {
+  return useMutation({
+    mutationFn: async ({ productId, data }: { productId: number; data: ReportCreate }) => {
+      const res = await apiClient.post<ReportResponse>(`/products/${productId}/reports`, data)
+      return res.data
+    },
   })
 }

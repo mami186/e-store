@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ImageOff } from "lucide-react"
+import { ImageOff, Store } from "lucide-react"
 import type { ProductListItem } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils"
 
@@ -16,10 +16,11 @@ export function ProductCard({ product }: ProductCardProps) {
       : null
 
   return (
-    <Link
-      href={`/products/${product.id}`}
-      className="group flex flex-col rounded-lg border bg-card transition-all hover:shadow-md"
-    >
+    <div className="group flex flex-col rounded-lg border bg-card transition-all hover:shadow-md">
+      <Link
+        href={`/products/${product.id}`}
+        className="block"
+      >
       <div className="aspect-square overflow-hidden rounded-t-lg bg-muted">
         {product.main_image ? (
           <img
@@ -40,5 +41,15 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
       </div>
     </Link>
+    <div className="px-3 pb-2">
+      <Link
+        href={`/sellers/${product.seller_id}`}
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Store className="size-3" />
+        View Shop
+      </Link>
+    </div>
+  </div>
   )
 }

@@ -167,6 +167,7 @@ export interface ProductResponse {
 
 export interface ProductListItem {
   id: number
+  seller_id: number
   name: string
   category: CategoryResponse | null
   status: string

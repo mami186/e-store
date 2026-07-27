@@ -16,6 +16,17 @@ export function useSellerProfile() {
   })
 }
 
+export function useSeller(userId: number) {
+  return useQuery<SellerResponse>({
+    queryKey: ["seller", userId],
+    queryFn: async () => {
+      const res = await apiClient.get<SellerResponse>(`/sellers/${userId}`)
+      return res.data
+    },
+    enabled: !!userId,
+  })
+}
+
 export function useApplySeller() {
   const qc = useQueryClient()
   return useMutation({
