@@ -6,6 +6,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider } from "next-themes"
 import { queryClient } from "@/lib/query-client"
 import { useAuthStore } from "@/lib/auth-store"
+import { Toaster } from "@/components/ui/toast"
 
 function AuthHydrator({ children }: { children: ReactNode }) {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -21,7 +22,10 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <AuthHydrator>{children}</AuthHydrator>
+        <AuthHydrator>
+          {children}
+          <Toaster />
+        </AuthHydrator>
       </QueryClientProvider>
     </ThemeProvider>
   )
