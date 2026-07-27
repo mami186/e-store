@@ -18,6 +18,8 @@ import {
   ImageIcon,
   Shield,
   ChevronRight,
+  Star,
+  FolderTree,
 } from "lucide-react"
 
 const navItems = [
@@ -32,6 +34,8 @@ const navItems = [
   { href: "/admin/restriction-reasons", label: "Restriction Reasons", icon: Gavel },
   { href: "/admin/appeals", label: "Appeals", icon: Scale },
   { href: "/admin/images", label: "Images", icon: ImageIcon },
+  { href: "/admin/featured", label: "Featured", icon: Star },
+  { href: "/admin/categories", label: "Categories", icon: FolderTree },
 ]
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

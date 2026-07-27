@@ -74,6 +74,21 @@ export interface SellerUpdate {
 }
 
 // ─── Category ───
+export interface CategoryCreate {
+  name: string
+  slug: string
+  description?: string | null
+  parent_id?: number | null
+}
+
+export interface CategoryUpdate {
+  name?: string
+  slug?: string
+  description?: string | null
+  parent_id?: number | null
+  is_active?: boolean
+}
+
 export interface CategoryResponse {
   id: number
   name: string

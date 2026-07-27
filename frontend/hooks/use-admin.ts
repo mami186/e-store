@@ -13,6 +13,12 @@ import type {
   CreateRestrictionRequest,
   AppealResponse,
   AdminProductImageResponse,
+  FeaturedItemResponse,
+  FeaturedItemCreate,
+  FeaturedItemUpdate,
+  CategoryResponse,
+  CategoryCreate,
+  CategoryUpdate,
 } from "@/lib/types"
 
 // ─── Users ───
@@ -325,5 +331,101 @@ export function useAdminRestoreImage() {
       await apiClient.put(`/admin/products/images/${imageId}/restore`)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "images"] }),
+  })
+}
+
+// ─── Featured Items ───
+
+export function useAdminFeatured() {
+  return useQuery<FeaturedItemResponse[]>({
+    queryKey: ["admin", "featured"],
+    queryFn: async () => {
+      const res = await apiClient.get<FeaturedItemResponse[]>("/admin/featured")
+      return res.data
+    },
+  })
+}
+
+export function useAdminCreateFeatured() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: FeaturedItemCreate) => {
+      const res = await apiClient.post<FeaturedItemResponse>("/admin/featured", data)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "featured"] }),
+  })
+}
+
+export function useAdminUpdateFeatured() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: FeaturedItemUpdate }) => {
+      const res = await apiClient.put<FeaturedItemResponse>(`/admin/featured/${id}`, data)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "featured"] }),
+  })
+}
+
+export function useAdminDeleteFeatured() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.delete(`/admin/featured/${id}`)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "featured"] }),
+  })
+}
+
+export function useAdminRefreshFeatured() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.post("/admin/featured/refresh")
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "featured"] }),
+  })
+}
+
+export function useAdminCategories() {
+  return useQuery<CategoryResponse[]>({
+    queryKey: ["admin", "categories"],
+    queryFn: async () => {
+      const res = await apiClient.get<CategoryResponse[]>("/categories/all")
+      return res.data
+    },
+  })
+}
+
+export function useAdminCreateCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: CategoryCreate) => {
+      const res = await apiClient.post<CategoryResponse>("/categories", data)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "categories"] }),
+  })
+}
+
+export function useAdminUpdateCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CategoryUpdate }) => {
+      const res = await apiClient.put<CategoryResponse>(`/categories/${id}`, data)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "categories"] }),
+  })
+}
+
+export function useAdminDeleteCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.delete(`/categories/${id}`)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "categories"] }),
   })
 }
