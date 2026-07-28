@@ -78,7 +78,7 @@ export function Header() {
   return (
     <>
       {/* Top Navbar — non-sticky, scrolls away */}
-      <header className="w-full border-b bg-muted/60">
+      <header className="w-full border-b bg-muted">
         <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-2">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <img src="/logo.svg" alt="Estore" className="h-6 w-auto text-foreground" />
