@@ -2,35 +2,103 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { Search, ShoppingCart, User } from "lucide-react"
+import { useState, useCallback } from "react"
+import { Search, ShoppingCart, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { useAuthStore } from "@/lib/auth-store"
+
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const router = useRouter()
+  const { user, isAuthenticated, logout } = useAuthStore()
+
+  const isSeller = user?.roles.some((r) => r.id === 1)
+  const isAdmin = user?.roles.some((r) => r.id >= 3)
+
+  const handleClick = useCallback(
+    (path: string) => {
+      router.push(path)
+      onNavigate?.()
+    },
+    [router, onNavigate],
+  )
+
+  const handleLogout = useCallback(async () => {
+    await logout()
+    router.push("/")
+    onNavigate?.()
+  }, [logout, router, onNavigate])
+
+  if (!isAuthenticated) return null
+
+  return (
+    <>
+      <button
+        onClick={() => handleClick("/orders")}
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Orders
+      </button>
+      <button
+        onClick={() => handleClick("/wishlist")}
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Wishlist
+      </button>
+      <button
+        onClick={() => handleClick("/appeals")}
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Appeals
+      </button>
+      {isSeller && (
+        <button
+          onClick={() => handleClick("/seller/dashboard")}
+          className="text-sm font-medium text-foreground hover:text-foreground transition-colors"
+        >
+          Dashboard
+        </button>
+      )}
+      {isAdmin && (
+        <button
+          onClick={() => handleClick("/admin/dashboard")}
+          className="text-sm font-medium text-foreground hover:text-foreground transition-colors"
+        >
+          Admin
+        </button>
+      )}
+      <button
+        onClick={() => handleClick("/profile")}
+        className="hidden md:inline-flex text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {user?.first_name || "Account"}
+      </button>
+      <button
+        onClick={handleLogout}
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Sign Out
+      </button>
+    </>
+  )
+}
 
 export function Header() {
   const router = useRouter()
   const [query, setQuery] = useState("")
-  const { user, isAuthenticated, logout } = useAuthStore()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const { user, isAuthenticated } = useAuthStore()
+
+  const isSeller = user?.roles.some((r) => r.id === 1)
+  const isAdmin = user?.roles.some((r) => r.id >= 3)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (query.trim()) {
       router.push(`/search?q=${encodeURIComponent(query.trim())}`)
     }
-  }
-
-  const handleLogout = async () => {
-    await logout()
-    router.push("/")
   }
 
   return (
@@ -52,46 +120,67 @@ export function Header() {
           </div>
         </form>
 
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Desktop nav links */}
+        <div className="hidden md:flex items-center gap-3 shrink-0">
           <ThemeToggle />
-
-          {isAuthenticated && user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium hover:bg-muted hover:text-foreground transition-colors">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline max-w-24 truncate">
-                  {user.first_name || user.email}
-                </span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => router.push("/profile")}>
-                  Your Account
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/orders")}>
-                  Your Orders
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/wishlist")}>
-                  Your Wishlist
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/appeals")}>
-                  Your Appeals
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {isAuthenticated ? (
+            <>
+              <NavLinks />
+              <Button variant="ghost" size="icon" onClick={() => router.push("/cart")}>
+                <ShoppingCart className="h-4 w-4" />
+              </Button>
+            </>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => router.push("/login")}>
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline ml-1">Sign In</span>
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" onClick={() => router.push("/login")}>
+                <User className="h-4 w-4" />
+                <span className="ml-1">Sign In</span>
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => router.push("/cart")}>
+                <ShoppingCart className="h-4 w-4" />
+              </Button>
+            </>
           )}
+        </div>
 
+        {/* Mobile */}
+        <div className="flex md:hidden items-center gap-1 shrink-0">
+          <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={() => router.push("/cart")}>
             <ShoppingCart className="h-4 w-4" />
           </Button>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <Menu className="h-4 w-4" />
+            </SheetTrigger>
+            <SheetContent side="right" className="w-64 p-6">
+              <div className="flex flex-col gap-4 mt-8">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {isAuthenticated ? user?.first_name || user?.email : "Menu"}
+                </p>
+                {isAuthenticated ? (
+                  <>
+                    <NavLinks onNavigate={() => setMobileOpen(false)} />
+                    <div className="mt-2 pt-2 border-t">
+                      <SheetClose
+                        className="w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                        onClick={() => router.push("/profile")}
+                      >
+                        {user?.first_name || "Account"}
+                      </SheetClose>
+                    </div>
+                  </>
+                ) : (
+                  <SheetClose
+                    onClick={() => router.push("/login")}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Sign In
+                  </SheetClose>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
