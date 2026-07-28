@@ -38,6 +38,11 @@ function BrowseContent() {
   const maxPriceParam = searchParams.get("max_price")
   const maxPrice = maxPriceParam ? Number(maxPriceParam) : undefined
 
+  // ── Local filter state (no backend) ──
+  const [certified, setCertified] = useState(false)
+  const [discounts, setDiscounts] = useState<string[]>([])
+  const [conditions, setConditions] = useState<string[]>([])
+
   const {
     data,
     isLoading,
@@ -103,10 +108,13 @@ function BrowseContent() {
   }
 
   const resetFilters = () => {
+    setCertified(false)
+    setDiscounts([])
+    setConditions([])
     router.push("/browse")
   }
 
-  const activeFilterCount = [categoryId, minPrice, maxPrice].filter(Boolean).length
+  const activeFilterCount = [categoryId, minPrice, maxPrice, certified ? 1 : null, ...discounts, ...conditions].filter(Boolean).length
 
   const { ref: sentinelRef, inView: sentinelInView } = useInView(0.1)
 
@@ -132,9 +140,7 @@ function BrowseContent() {
     <div className="mx-auto max-w-7xl px-4 py-8 space-y-10">
 
       {/* ─── Section 1: Today's Deals ─── */}
-      {featuredItems.length > 0 && (
-        <TodaysDealsSection items={featuredItems} isLoading={featuredLoading} />
-      )}
+      <TodaysDealsSection items={featuredItems} isLoading={featuredLoading} />
 
       {/* ─── Section 2: Product Grid ─── */}
       <div className="flex gap-8">
@@ -195,11 +201,11 @@ function BrowseContent() {
               )}
             </div>
 
-            {/* Estore Certified (placeholder) */}
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            {/* Estore Certified */}
+            <label className="flex items-center justify-between text-sm cursor-pointer">
               <span>Estore Certified</span>
-              <input type="checkbox" disabled className="accent-primary cursor-not-allowed opacity-60" />
-            </div>
+              <input type="checkbox" checked={certified} onChange={(e) => setCertified(e.target.checked)} className="accent-primary" />
+            </label>
 
             {/* Price */}
             <div>
@@ -224,44 +230,68 @@ function BrowseContent() {
               )}
             </div>
 
-            {/* Discount (placeholder) */}
+            {/* Discount */}
             <div>
               <button
                 onClick={() => setDiscountOpen(!discountOpen)}
-                className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground"
+                className="flex w-full items-center justify-between text-sm font-medium"
               >
                 <span>Discount</span>
                 <ChevronDown className={cn("h-4 w-4 transition-transform", discountOpen && "rotate-180")} />
               </button>
               {discountOpen && (
-                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                  {["All Deals", "Buy More Get More", "Today's Deals"].map((label) => (
-                    <label key={label} className="flex items-center gap-2 rounded px-2 py-1 cursor-not-allowed opacity-60">
-                      <input type="checkbox" disabled className="accent-primary" />
-                      {label}
-                    </label>
-                  ))}
+                <div className="mt-2 space-y-1 text-sm">
+                  {["All Deals", "Buy More Get More", "Today's Deals"].map((label) => {
+                    const checked = discounts.includes(label)
+                    return (
+                      <label key={label} className="flex items-center gap-2 rounded px-2 py-1 cursor-pointer hover:bg-muted">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setDiscounts((prev) =>
+                              checked ? prev.filter((d) => d !== label) : [...prev, label],
+                            )
+                          }
+                          className="accent-primary"
+                        />
+                        {label}
+                      </label>
+                    )
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Condition (placeholder) */}
+            {/* Condition */}
             <div>
               <button
                 onClick={() => setConditionOpen(!conditionOpen)}
-                className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground"
+                className="flex w-full items-center justify-between text-sm font-medium"
               >
                 <span>Condition</span>
                 <ChevronDown className={cn("h-4 w-4 transition-transform", conditionOpen && "rotate-180")} />
               </button>
               {conditionOpen && (
-                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                  {["New", "Renewed", "Used"].map((label) => (
-                    <label key={label} className="flex items-center gap-2 rounded px-2 py-1 cursor-not-allowed opacity-60">
-                      <input type="checkbox" disabled className="accent-primary" />
-                      {label}
-                    </label>
-                  ))}
+                <div className="mt-2 space-y-1 text-sm">
+                  {["New", "Renewed", "Used"].map((label) => {
+                    const checked = conditions.includes(label)
+                    return (
+                      <label key={label} className="flex items-center gap-2 rounded px-2 py-1 cursor-pointer hover:bg-muted">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setConditions((prev) =>
+                              checked ? prev.filter((c) => c !== label) : [...prev, label],
+                            )
+                          }
+                          className="accent-primary"
+                        />
+                        {label}
+                      </label>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -295,6 +325,30 @@ function BrowseContent() {
                 </button>
               </Badge>
             )}
+            {certified && (
+              <Badge variant="secondary" className="gap-1">
+                Estore Certified
+                <button onClick={() => setCertified(false)} className="hover:text-foreground">
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            )}
+            {discounts.map((d) => (
+              <Badge key={d} variant="secondary" className="gap-1">
+                {d}
+                <button onClick={() => setDiscounts((prev) => prev.filter((x) => x !== d))} className="hover:text-foreground">
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+            {conditions.map((c) => (
+              <Badge key={c} variant="secondary" className="gap-1">
+                {c}
+                <button onClick={() => setConditions((prev) => prev.filter((x) => x !== c))} className="hover:text-foreground">
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
           </div>
 
           {/* Product cards */}
