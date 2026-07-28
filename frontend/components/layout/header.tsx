@@ -12,7 +12,7 @@ import { useAuthStore } from "@/lib/auth-store"
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const router = useRouter()
-  const { user, isAuthenticated, logout } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
 
   const isSeller = user?.roles.some((r) => r.id === 1)
   const isAdmin = user?.roles.some((r) => r.id >= 3)
@@ -24,12 +24,6 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     },
     [router, onNavigate],
   )
-
-  const handleLogout = useCallback(async () => {
-    await logout()
-    router.push("/")
-    onNavigate?.()
-  }, [logout, router, onNavigate])
 
   if (!isAuthenticated) return null
 
@@ -71,15 +65,12 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       )}
       <button
         onClick={() => handleClick("/profile")}
-        className="hidden md:inline-flex text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        {user?.first_name || "Account"}
-      </button>
-      <button
-        onClick={handleLogout}
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        Sign Out
+        <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
+          {(user?.first_name?.[0] || user?.email?.[0] || "?").toUpperCase()}
+        </span>
+        <span className="hidden md:inline">{user?.first_name || "Account"}</span>
       </button>
     </>
   )

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
 import apiClient from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
@@ -8,9 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { LogOut } from "lucide-react"
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuthStore()
+  const router = useRouter()
+  const { user, updateUser, logout } = useAuthStore()
 
   const [profile, setProfile] = useState({
     first_name: user?.first_name || "",
@@ -128,6 +131,20 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      <div className="pt-4 border-t">
+        <Button
+          variant="outline"
+          className="w-full text-destructive hover:text-destructive"
+          onClick={async () => {
+            await logout()
+            router.push("/")
+          }}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
+      </div>
     </div>
   )
 }
