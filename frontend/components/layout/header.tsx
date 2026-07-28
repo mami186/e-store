@@ -79,7 +79,7 @@ export function Header() {
     <>
       {/* Top Navbar — non-sticky, scrolls away */}
       <header className="w-full border-b bg-background">
-        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4">
+        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-2">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <img src="/logo.svg" alt="Estore" className="h-6 w-auto text-foreground" />
             <span className="text-lg font-bold tracking-tight">Estore</span>
@@ -144,8 +144,8 @@ export function Header() {
       </header>
 
       {/* Bottom Navbar — sticky */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background">
-        <div className="mx-auto flex h-12 max-w-7xl items-center gap-3 px-4">
+      <header className="sticky top-0 z-50 w-full border-b bg-muted/60 backdrop-blur supports-backdrop-blur:bg-muted/80">
+        <div className="mx-auto flex h-12 max-w-7xl items-center gap-2 px-2">
           {/* Search */}
           <form onSubmit={handleSearch} className="flex-1 max-w-md">
             <div className="relative">
