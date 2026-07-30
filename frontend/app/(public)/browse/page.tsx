@@ -137,12 +137,12 @@ function BrowseContent() {
   const [conditionOpen, setConditionOpen] = useState(true)
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 space-y-10">
-
-      {/* ─── Section 1: Today's Deals ─── */}
+    <>
+      {/* ─── Section 1: Today's Deals (full-width) ─── */}
       <TodaysDealsSection items={featuredItems} isLoading={featuredLoading} />
 
       {/* ─── Section 2: Product Grid ─── */}
+      <div className="mx-auto max-w-7xl px-4 py-8 space-y-10">
       <div className="flex gap-8">
         {/* Right Sidebar Filters */}
         <aside className="hidden w-64 shrink-0 md:block order-last">
@@ -418,7 +418,8 @@ function BrowseContent() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -431,100 +432,85 @@ function TodaysDealsSection({
   items: FeaturedItemResponse[]
   isLoading: boolean
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const total = items.length
 
-  const updateScroll = () => {
-    const el = scrollRef.current
-    if (!el) return
-    setCanScrollLeft(el.scrollLeft > 4)
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4)
-  }
+  const getItem = useCallback((offset: number) => {
+    if (total === 0) return null
+    return items[((activeIndex + offset) % total + total) % total]
+  }, [items, activeIndex, total])
 
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    updateScroll()
-    el.addEventListener("scroll", updateScroll, { passive: true })
-    const ro = new ResizeObserver(updateScroll)
-    ro.observe(el)
-    return () => {
-      el.removeEventListener("scroll", updateScroll)
-      ro.disconnect()
-    }
-  }, [items])
+  const goNext = useCallback(() => {
+    setActiveIndex((prev) => (prev + 1) % total)
+  }, [total])
 
-  const scroll = (dir: "left" | "right") => {
-    const el = scrollRef.current
-    if (!el) return
-    const cardWidth = el.querySelector(":scope > *")?.clientWidth ?? 300
-    const gap = 16
-    el.scrollBy({ left: dir === "left" ? -(cardWidth + gap) : cardWidth + gap, behavior: "smooth" })
-  }
+  const goPrev = useCallback(() => {
+    setActiveIndex((prev) => (prev - 1 + total) % total)
+  }, [total])
 
   if (isLoading) {
     return (
-      <section>
-        <h2 className="mb-4 text-xl font-bold">Today&apos;s Deals</h2>
-        <div className="flex gap-4 overflow-hidden">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 min-w-[calc((100%-32px)/3)] rounded-lg" />
-          ))}
+      <section className="w-screen bg-muted/30 py-8">
+        <div className="mx-auto max-w-7xl px-4">
+          <h2 className="mb-6 text-xl font-bold">Today&apos;s Deals</h2>
+          <div className="flex gap-4 overflow-hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 w-[clamp(160px,25vw,380px)] shrink-0 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (total === 0) {
+    return (
+      <section className="w-screen bg-muted/30 py-8">
+        <div className="mx-auto max-w-7xl px-4">
+          <h2 className="mb-6 text-xl font-bold">Today&apos;s Deals</h2>
+          <p className="text-sm text-muted-foreground">No deals available right now.</p>
         </div>
       </section>
     )
   }
 
   return (
-    <section>
-      <h2 className="mb-4 text-xl font-bold">Today&apos;s Deals</h2>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No deals available right now.</p>
-      ) : (
+    <section className="w-screen overflow-hidden bg-gradient-to-r from-muted/30 via-background to-muted/30 py-8">
+      <div className="mx-auto max-w-7xl px-4 mb-6">
+        <h2 className="text-xl font-bold">Today&apos;s Deals</h2>
+      </div>
       <div className="relative">
-        {canScrollLeft && (
-          <button
-            type="button"
-            onClick={() => scroll("left")}
-            className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 size-10 items-center justify-center rounded-full bg-background/80 shadow-sm border border-border hover:bg-background transition-colors"
-            aria-label="Scroll left"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-        )}
-        {canScrollRight && (
-          <button
-            type="button"
-            onClick={() => scroll("right")}
-            className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 size-10 items-center justify-center rounded-full bg-background/80 shadow-sm border border-border hover:bg-background transition-colors"
-            aria-label="Scroll right"
-          >
-            <ChevronRight className="size-5" />
-          </button>
-        )}
-        <div
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {items.map((item) => {
+        <div className="flex items-center justify-center gap-3">
+          {[-2, -1, 0, 1, 2].map((offset) => {
+            const item = getItem(offset)
+            if (!item) return null
+            const isCenter = offset === 0
             const product = item.product
             const variant = item.variant
-            const imageUrl = product?.main_image ?? variant?.image ?? null
+            const image = variant?.image ?? product?.main_image ?? null
             const name = product?.name ?? variant?.name ?? "Unknown"
-            const price = variant ? (variant.price ?? product?.min_price) : product?.min_price
-            const href = product ? `/products/${product.id}` : variant ? `/products/${variant.product_id}` : "#"
+            const price: number | null = variant ? variant.price : product?.min_price ?? null
+            const linkHref = variant ? `/products/${variant.product_id}` : product ? `/products/${product.id}` : "#"
 
             return (
               <Link
-                key={item.id}
-                href={href}
-                className="min-w-[calc((100%-32px)/3)] shrink-0 group flex flex-col rounded-lg border bg-card transition-all hover:shadow-md"
+                key={`${item.id}-${offset}`}
+                href={linkHref}
+                className={cn(
+                  "flex-shrink-0 rounded-lg border bg-card transition-all duration-300",
+                  isCenter
+                    ? "z-10 scale-110 shadow-[0_0_24px_hsl(var(--primary))]"
+                    : "z-0",
+                  "w-[clamp(160px,25vw,380px)]"
+                )}
               >
                 <div className="aspect-square overflow-hidden rounded-t-lg bg-muted">
-                  {imageUrl ? (
-                    <img src={imageUrl} alt={name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                  {image ? (
+                    <img
+                      src={image}
+                      alt={name}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                       <ImageOff className="size-8" />
@@ -539,8 +525,28 @@ function TodaysDealsSection({
             )
           })}
         </div>
+
+        {total > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={goPrev}
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 size-10 items-center justify-center rounded-full bg-background/80 shadow-sm border border-border hover:bg-background transition-colors hidden md:flex"
+              aria-label="Previous deals"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 size-10 items-center justify-center rounded-full bg-background/80 shadow-sm border border-border hover:bg-background transition-colors hidden md:flex"
+              aria-label="Next deals"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          </>
+        )}
       </div>
-      )}
     </section>
   )
 }
