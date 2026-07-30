@@ -16,7 +16,7 @@ interface CarouselContextValue {
 
 const CarouselContext = createContext<CarouselContextValue | null>(null)
 
-function useCarousel() {
+export function useCarousel() {
   const ctx = useContext(CarouselContext)
   if (!ctx) throw new Error("useCarousel must be used within <Carousel>")
   return ctx
@@ -57,17 +57,8 @@ export function CarouselContent({ className, children }: { className?: string; c
   return <div className={cn("flex", className)}>{children}</div>
 }
 
-export function CarouselItem({ className, children, index }: { className?: string; children: ReactNode; index?: number }) {
-  const { selectedIndex } = useCarousel()
-  const isActive = index != null && index === selectedIndex
-  return (
-    <div
-      data-active={isActive ? "true" : undefined}
-      className={cn("min-w-0 shrink-0 grow-0 basis-auto", className)}
-    >
-      {children}
-    </div>
-  )
+export function CarouselItem({ className, children }: { className?: string; children: ReactNode }) {
+  return <div className={cn("min-w-0 shrink-0 grow-0 basis-auto", className)}>{children}</div>
 }
 
 export function CarouselPrevious({ className }: { className?: string }) {

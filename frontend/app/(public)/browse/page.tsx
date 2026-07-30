@@ -431,12 +431,12 @@ function TodaysDealsSection({
 }) {
   if (isLoading) {
     return (
-      <section className="w-full bg-muted/30 py-12 overflow-hidden">
+      <section className="w-full bg-neutral-950 py-16 overflow-hidden">
         <div className="mx-auto max-w-7xl px-4">
-          <h2 className="mb-6 text-xl font-bold">Today&apos;s Deals</h2>
+          <h2 className="mb-8 text-2xl font-bold text-white">Today&apos;s Deals</h2>
           <div className="flex gap-4 overflow-hidden">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-64 basis-1/5 shrink-0 rounded-lg" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[350px] basis-[85%] sm:basis-1/2 md:basis-1/3 xl:basis-1/4 shrink-0 rounded-xl bg-neutral-800" />
             ))}
           </div>
         </div>
@@ -446,40 +446,39 @@ function TodaysDealsSection({
 
   if (items.length === 0) {
     return (
-      <section className="w-full bg-muted/30 py-12 overflow-hidden">
+      <section className="w-full bg-neutral-950 py-16 overflow-hidden">
         <div className="mx-auto max-w-7xl px-4">
-          <h2 className="mb-6 text-xl font-bold">Today&apos;s Deals</h2>
-          <p className="text-sm text-muted-foreground">No deals available right now.</p>
+          <h2 className="mb-8 text-2xl font-bold text-white">Today&apos;s Deals</h2>
+          <p className="text-sm text-neutral-400">No deals available right now.</p>
         </div>
       </section>
     )
   }
 
   return (
-    <section className="w-full overflow-hidden bg-gradient-to-b from-background via-muted/20 to-background py-12 relative">
-      <div className="mx-auto max-w-7xl px-4 mb-6">
-        <h2 className="text-xl font-bold tracking-tight">Today&apos;s Deals</h2>
+    <section className="w-full overflow-hidden bg-neutral-950 py-4">
+      <div className="mx-auto  max-w-7xl px-4">
+        <h2 className="text-2xl font-bold text-white">Today&apos;s Deals</h2>
       </div>
 
-      {/* Bleeds full-width across viewport */}
-      <div className="relative w-full group">
+      <div className="relative w-full">
         <Carousel opts={{ align: "center", loop: true }}>
-          <CarouselContent className="py-8 ml-0">
+          <CarouselContent className="-mx-2 md:-mx-3">
             {items.map((item, i) => (
               <CarouselItem
                 key={item.id}
-                className="pl-4 basis-[70%] sm:basis-[45%] md:basis-[35%] lg:basis-[28%] 2xl:basis-[22%]"
+                className="mx-2 md:mx-5 py-8 md:py-12 basis-[85%] sm:basis-1/2 md:basis-1/3 xl:basis-1/4"
               >
                 <DealCard item={item} index={i} />
               </CarouselItem>
             ))}
           </CarouselContent>
 
-          {/* Floating Navigation Arrows pinned to viewport edges */}
-          <CarouselPrevious className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 size-12 bg-background/80 hover:bg-background border-none shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <CarouselNext className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 size-12 bg-background/80 hover:bg-background border-none shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          {/* Navigation Arrows */}
+          <CarouselPrevious className="hidden lg:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 size-12 items-center justify-center text-white/50 hover:text-white active:scale-100 active:translate-y-0 transition-colors duration-300 border-none bg-transparent" />
+          <CarouselNext className="hidden lg:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 size-12 items-center justify-center text-white/50 hover:text-white active:scale-100 active:translate-y-0 transition-colors duration-300 border-none bg-transparent" />
 
-          {/* Pagination Dashes */}
+          {/* Pagination Dots */}
           <PaginationDashes />
         </Carousel>
       </div>
@@ -487,7 +486,7 @@ function TodaysDealsSection({
   )
 }
 
-// ─── Pagination Dash Track ───
+// ─── Pagination Dots ───
 function PaginationDashes() {
   const { emblaApi, selectedIndex } = useCarousel()
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
@@ -505,16 +504,16 @@ function PaginationDashes() {
   if (scrollSnaps.length <= 1) return null
 
   return (
-    <div className="flex justify-center items-center gap-2 mt-4">
+    <div className="flex justify-center items-center gap-3 mt-8">
       {scrollSnaps.map((_, index) => (
         <button
           key={index}
           onClick={() => emblaApi?.scrollTo(index)}
           className={cn(
-            "h-1 transition-all duration-300 rounded-full",
+            "size-2 rounded-full transition-all duration-300",
             index === selectedIndex
-              ? "w-8 bg-primary"
-              : "w-3 bg-muted-foreground/30 hover:bg-muted-foreground/60"
+              ? "bg-white border-white"
+              : "border border-white/30 bg-transparent hover:border-white/60"
           )}
           aria-label={`Go to slide ${index + 1}`}
         />
@@ -523,13 +522,14 @@ function PaginationDashes() {
   )
 }
 
-// ─── Deal Card ───
+// ─── Deal Card (PlayStation-style) ───
 function DealCard({ item, index }: { item: FeaturedItemResponse; index: number }) {
   const { selectedIndex } = useCarousel()
   const isActive = index === selectedIndex
   const product = item.product
   const variant = item.variant
   const image = variant?.image ?? product?.main_image ?? null
+  const name = product?.name ?? variant?.name ?? "Product"
   const linkHref = variant ? `/products/${variant.product_id}` : product ? `/products/${product.id}` : "#"
 
   return (
@@ -537,30 +537,23 @@ function DealCard({ item, index }: { item: FeaturedItemResponse; index: number }
       href={linkHref}
       data-active={isActive ? true : undefined}
       className={cn(
-        "block relative overflow-hidden rounded-2xl transition-all duration-500 transform-gpu",
-        // Inactive Card State
-        "scale-100 opacity-40 border border-transparent hover:opacity-70",
-        // Active Center Card State
-        "data-[active=true]:scale-110 data-[active=true]:opacity-100 data-[active=true]:z-20",
-        "data-[active=true]:border-2 data-[active=true]:border-white dark:data-[active=true]:border-white",
-        "data-[active=true]:shadow-[0_0_30px_rgba(255,255,255,0.2)] dark:data-[active=true]:shadow-[0_0_30px_rgba(255,255,255,0.15)]",
-        "data-[active=true]:hover:scale-[1.13]"
+        "block rounded-xl overflow-hidden transition-all duration-500 bg-neutral-900",
+        "opacity-60 hover:scale-[1.02] data-[active=true]:opacity-100 data-[active=true]:scale-[1.05] data-[active=true]:hover:scale-[1.08]"
       )}
     >
-      <div className="aspect-square bg-muted">
+      <div className="aspect-square bg-neutral-800">
         {image ? (
           <img
             src={image}
-            alt={product?.name || "Product deal"}
+            alt={name}
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <ImageOff className="size-8" />
+          <div className="flex h-full w-full items-center justify-center text-neutral-600">
+            <ImageOff className="size-10" />
           </div>
         )}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 data-[active=true]:opacity-100 pointer-events-none" />
     </Link>
   )
 }
