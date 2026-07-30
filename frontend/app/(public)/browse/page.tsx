@@ -5,15 +5,13 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { X, ChevronDown, ImageOff, Filter, RotateCcw, Star } from "lucide-react"
 import type { FeaturedItemResponse } from "@/lib/types"
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, useCarousel } from "@/components/ui/carousel"
 import { useProducts } from "@/hooks/use-products"
 import { useCategories } from "@/hooks/use-categories"
 import { useFeatured } from "@/hooks/use-featured"
 import { useInView } from "@/hooks/use-in-view"
-import { formatCurrency } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RangeSlider } from "@/components/ui/range-slider"
 import {
@@ -139,10 +137,8 @@ function BrowseContent() {
 
   return (
     <>
-      {/* ─── Section 1: Today's Deals (full-width) ─── */}
       <TodaysDealsSection items={featuredItems} isLoading={featuredLoading} />
 
-      {/* ─── Section 2: Product Grid ─── */}
       <div className="mx-auto max-w-7xl px-4 py-8 space-y-10">
       <div className="flex gap-8">
         {/* Right Sidebar Filters */}
@@ -301,7 +297,7 @@ function BrowseContent() {
 
         {/* Right Content */}
         <div className="flex-1 space-y-4">
-          {/* Show dropdown + category chip */}
+          {/* Show dropdown + chips */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Show:</span>
@@ -435,7 +431,7 @@ function TodaysDealsSection({
 }) {
   if (isLoading) {
     return (
-      <section className="w-screen bg-muted/30 py-8">
+      <section className="w-full bg-muted/30 py-12 overflow-hidden">
         <div className="mx-auto max-w-7xl px-4">
           <h2 className="mb-6 text-xl font-bold">Today&apos;s Deals</h2>
           <div className="flex gap-4 overflow-hidden">
@@ -450,7 +446,7 @@ function TodaysDealsSection({
 
   if (items.length === 0) {
     return (
-      <section className="w-screen bg-muted/30 py-8">
+      <section className="w-full bg-muted/30 py-12 overflow-hidden">
         <div className="mx-auto max-w-7xl px-4">
           <h2 className="mb-6 text-xl font-bold">Today&apos;s Deals</h2>
           <p className="text-sm text-muted-foreground">No deals available right now.</p>
@@ -460,72 +456,129 @@ function TodaysDealsSection({
   }
 
   return (
-    <section className="w-screen overflow-hidden bg-gradient-to-r from-muted/30 via-background to-muted/30 py-8">
+    <section className="w-full overflow-hidden bg-gradient-to-b from-background via-muted/20 to-background py-12 relative">
       <div className="mx-auto max-w-7xl px-4 mb-6">
-        <h2 className="text-xl font-bold">Today&apos;s Deals</h2>
+        <h2 className="text-xl font-bold tracking-tight">Today&apos;s Deals</h2>
       </div>
-      <div className="relative">
-        <Carousel opts={{ align: "center", loop: true }}>
-          <CarouselContent className="-ml-4">
-            {items.map((item, i) => {
-              const product = item.product
-              const variant = item.variant
-              const image = variant?.image ?? product?.main_image ?? null
-              const name = product?.name ?? variant?.name ?? "Unknown"
-              const price: number | null = variant ? variant.price : product?.min_price ?? null
-              const linkHref = variant ? `/products/${variant.product_id}` : product ? `/products/${product.id}` : "#"
 
-              return (
-                <CarouselItem key={item.id} index={i} className="pl-4 basis-1/2 sm:basis-1/3 lg:basis-1/5">
-                  <Link
-                    href={linkHref}
-                    className={cn(
-                      "flex flex-col rounded-lg border bg-card transition-all duration-300",
-                      "data-[active=true]:scale-110 data-[active=true]:shadow-[0_0_24px_hsl(var(--primary))] data-[active=true]:z-10"
-                    )}
-                  >
-                    <div className="aspect-square overflow-hidden rounded-t-lg bg-muted">
-                      {image ? (
-                        <img
-                          src={image}
-                          alt={name}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <ImageOff className="size-8" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1 p-3">
-                      <h3 className="text-sm font-medium line-clamp-2">{name}</h3>
-                      {price != null && <p className="text-sm font-semibold">{formatCurrency(price)}</p>}
-                    </div>
-                  </Link>
-                </CarouselItem>
-              )
-            })}
+      {/* Bleeds full-width across viewport */}
+      <div className="relative w-full group">
+        <Carousel opts={{ align: "center", loop: true }}>
+          <CarouselContent className="py-8 ml-0">
+            {items.map((item, i) => (
+              <CarouselItem
+                key={item.id}
+                className="pl-4 basis-[70%] sm:basis-[45%] md:basis-[35%] lg:basis-[28%] 2xl:basis-[22%]"
+              >
+                <DealCard item={item} index={i} />
+              </CarouselItem>
+            ))}
           </CarouselContent>
-          <CarouselPrevious className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2" />
-          <CarouselNext className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2" />
+
+          {/* Floating Navigation Arrows pinned to viewport edges */}
+          <CarouselPrevious className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 size-12 bg-background/80 hover:bg-background border-none shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <CarouselNext className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 size-12 bg-background/80 hover:bg-background border-none shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {/* Pagination Dashes */}
+          <PaginationDashes />
         </Carousel>
       </div>
     </section>
   )
 }
 
+// ─── Pagination Dash Track ───
+function PaginationDashes() {
+  const { emblaApi, selectedIndex } = useCarousel()
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
+
+  useEffect(() => {
+    if (!emblaApi) return
+    const updateSnaps = () => setScrollSnaps(emblaApi.scrollSnapList())
+    updateSnaps()
+    emblaApi.on("reInit", updateSnaps)
+    return () => {
+      emblaApi.off("reInit", updateSnaps)
+    }
+  }, [emblaApi])
+
+  if (scrollSnaps.length <= 1) return null
+
+  return (
+    <div className="flex justify-center items-center gap-2 mt-4">
+      {scrollSnaps.map((_, index) => (
+        <button
+          key={index}
+          onClick={() => emblaApi?.scrollTo(index)}
+          className={cn(
+            "h-1 transition-all duration-300 rounded-full",
+            index === selectedIndex
+              ? "w-8 bg-primary"
+              : "w-3 bg-muted-foreground/30 hover:bg-muted-foreground/60"
+          )}
+          aria-label={`Go to slide ${index + 1}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ─── Deal Card ───
+function DealCard({ item, index }: { item: FeaturedItemResponse; index: number }) {
+  const { selectedIndex } = useCarousel()
+  const isActive = index === selectedIndex
+  const product = item.product
+  const variant = item.variant
+  const image = variant?.image ?? product?.main_image ?? null
+  const linkHref = variant ? `/products/${variant.product_id}` : product ? `/products/${product.id}` : "#"
+
+  return (
+    <Link
+      href={linkHref}
+      data-active={isActive ? true : undefined}
+      className={cn(
+        "block relative overflow-hidden rounded-2xl transition-all duration-500 transform-gpu",
+        // Inactive Card State
+        "scale-100 opacity-40 border border-transparent hover:opacity-70",
+        // Active Center Card State
+        "data-[active=true]:scale-110 data-[active=true]:opacity-100 data-[active=true]:z-20",
+        "data-[active=true]:border-2 data-[active=true]:border-white dark:data-[active=true]:border-white",
+        "data-[active=true]:shadow-[0_0_30px_rgba(255,255,255,0.2)] dark:data-[active=true]:shadow-[0_0_30px_rgba(255,255,255,0.15)]",
+        "data-[active=true]:hover:scale-[1.13]"
+      )}
+    >
+      <div className="aspect-square bg-muted">
+        {image ? (
+          <img
+            src={image}
+            alt={product?.name || "Product deal"}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <ImageOff className="size-8" />
+          </div>
+        )}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 data-[active=true]:opacity-100 pointer-events-none" />
+    </Link>
+  )
+}
+
 export default function BrowsePage() {
   return (
-    <Suspense fallback={
-      <div className="mx-auto max-w-7xl px-4 py-8 space-y-4">
-        <Skeleton className="h-8 max-w-sm" />
-        <div className="flex gap-4 overflow-hidden">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 min-w-[calc((100%-32px)/3)] rounded-lg" />
-          ))}
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-7xl px-4 py-8 space-y-4">
+          <Skeleton className="h-8 max-w-sm" />
+          <div className="flex gap-4 overflow-hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 min-w-[calc((100%-32px)/3)] rounded-lg" />
+            ))}
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <BrowseContent />
     </Suspense>
   )
