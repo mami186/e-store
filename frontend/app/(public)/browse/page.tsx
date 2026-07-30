@@ -1,10 +1,11 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useState, useRef } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { X, ChevronDown, ChevronLeft, ChevronRight, ImageOff, Filter, RotateCcw, Star } from "lucide-react"
+import { X, ChevronDown, ImageOff, Filter, RotateCcw, Star } from "lucide-react"
 import type { FeaturedItemResponse } from "@/lib/types"
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel"
 import { cn } from "@/lib/utils"
 import { useProducts } from "@/hooks/use-products"
 import { useCategories } from "@/hooks/use-categories"
@@ -432,22 +433,6 @@ function TodaysDealsSection({
   items: FeaturedItemResponse[]
   isLoading: boolean
 }) {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const total = items.length
-
-  const getItem = useCallback((offset: number) => {
-    if (total === 0) return null
-    return items[((activeIndex + offset) % total + total) % total]
-  }, [items, activeIndex, total])
-
-  const goNext = useCallback(() => {
-    setActiveIndex((prev) => (prev + 1) % total)
-  }, [total])
-
-  const goPrev = useCallback(() => {
-    setActiveIndex((prev) => (prev - 1 + total) % total)
-  }, [total])
-
   if (isLoading) {
     return (
       <section className="w-screen bg-muted/30 py-8">
@@ -455,7 +440,7 @@ function TodaysDealsSection({
           <h2 className="mb-6 text-xl font-bold">Today&apos;s Deals</h2>
           <div className="flex gap-4 overflow-hidden">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-64 w-[clamp(160px,25vw,380px)] shrink-0 rounded-lg" />
+              <Skeleton key={i} className="h-64 basis-1/5 shrink-0 rounded-lg" />
             ))}
           </div>
         </div>
@@ -463,7 +448,7 @@ function TodaysDealsSection({
     )
   }
 
-  if (total === 0) {
+  if (items.length === 0) {
     return (
       <section className="w-screen bg-muted/30 py-8">
         <div className="mx-auto max-w-7xl px-4">
@@ -480,72 +465,50 @@ function TodaysDealsSection({
         <h2 className="text-xl font-bold">Today&apos;s Deals</h2>
       </div>
       <div className="relative">
-        <div className="flex items-center justify-center gap-3">
-          {[-2, -1, 0, 1, 2].map((offset) => {
-            const item = getItem(offset)
-            if (!item) return null
-            const isCenter = offset === 0
-            const product = item.product
-            const variant = item.variant
-            const image = variant?.image ?? product?.main_image ?? null
-            const name = product?.name ?? variant?.name ?? "Unknown"
-            const price: number | null = variant ? variant.price : product?.min_price ?? null
-            const linkHref = variant ? `/products/${variant.product_id}` : product ? `/products/${product.id}` : "#"
+        <Carousel opts={{ align: "center", loop: true }}>
+          <CarouselContent className="-ml-4">
+            {items.map((item, i) => {
+              const product = item.product
+              const variant = item.variant
+              const image = variant?.image ?? product?.main_image ?? null
+              const name = product?.name ?? variant?.name ?? "Unknown"
+              const price: number | null = variant ? variant.price : product?.min_price ?? null
+              const linkHref = variant ? `/products/${variant.product_id}` : product ? `/products/${product.id}` : "#"
 
-            return (
-              <Link
-                key={`${item.id}-${offset}`}
-                href={linkHref}
-                className={cn(
-                  "flex-shrink-0 rounded-lg border bg-card transition-all duration-300",
-                  isCenter
-                    ? "z-10 scale-110 shadow-[0_0_24px_hsl(var(--primary))]"
-                    : "z-0",
-                  "w-[clamp(160px,25vw,380px)]"
-                )}
-              >
-                <div className="aspect-square overflow-hidden rounded-t-lg bg-muted">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt={name}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                      <ImageOff className="size-8" />
+              return (
+                <CarouselItem key={item.id} index={i} className="pl-4 basis-1/2 sm:basis-1/3 lg:basis-1/5">
+                  <Link
+                    href={linkHref}
+                    className={cn(
+                      "flex flex-col rounded-lg border bg-card transition-all duration-300",
+                      "data-[active=true]:scale-110 data-[active=true]:shadow-[0_0_24px_hsl(var(--primary))] data-[active=true]:z-10"
+                    )}
+                  >
+                    <div className="aspect-square overflow-hidden rounded-t-lg bg-muted">
+                      {image ? (
+                        <img
+                          src={image}
+                          alt={name}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                          <ImageOff className="size-8" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1 p-3">
-                  <h3 className="text-sm font-medium line-clamp-2">{name}</h3>
-                  {price != null && <p className="text-sm font-semibold">{formatCurrency(price)}</p>}
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-
-        {total > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={goPrev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 size-10 items-center justify-center rounded-full bg-background/80 shadow-sm border border-border hover:bg-background transition-colors hidden md:flex"
-              aria-label="Previous deals"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-            <button
-              type="button"
-              onClick={goNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 size-10 items-center justify-center rounded-full bg-background/80 shadow-sm border border-border hover:bg-background transition-colors hidden md:flex"
-              aria-label="Next deals"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-          </>
-        )}
+                    <div className="flex flex-col gap-1 p-3">
+                      <h3 className="text-sm font-medium line-clamp-2">{name}</h3>
+                      {price != null && <p className="text-sm font-semibold">{formatCurrency(price)}</p>}
+                    </div>
+                  </Link>
+                </CarouselItem>
+              )
+            })}
+          </CarouselContent>
+          <CarouselPrevious className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2" />
+          <CarouselNext className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2" />
+        </Carousel>
       </div>
     </section>
   )
